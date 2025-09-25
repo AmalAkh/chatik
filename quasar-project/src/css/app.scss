@@ -1,1 +1,18 @@
-// app global css in SCSS form
+html, body, #q-app {
+  height: 100%;
+}
+.q-page
+{
+    
+    min-height: auto;
+    flex:auto
+}
+.q-page-container
+{
+    display: flex;
+
+}
+.full-height
+{
+    min-height: 100%;
+}
