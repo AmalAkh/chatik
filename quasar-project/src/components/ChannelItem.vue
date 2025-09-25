@@ -13,5 +13,8 @@
         <q-item-label caption>5 min ago</q-item-label>
         
         </q-item-section>
+        <q-item-section side top>
+           <q-badge rounded label="1" />
+        </q-item-section>
     </q-item>
 </template>
