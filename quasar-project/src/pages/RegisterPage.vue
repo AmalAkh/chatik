@@ -63,11 +63,11 @@
                     type="password"
                     :rules="[val => val === password || 'Passwords must match']"
                 />
+                <q-btn label="Register" type="submit" color="primary" class="full-width" />
             </q-form>
 
             <!-- buttons -->
             <q-card-actions class="column q-gutter-sm full-width">
-                <q-btn label="Register" type="submit" color="primary" class="full-width" />
                 <q-btn flat label="Login" color="secondary" @click="goToLogin"/>
             </q-card-actions>
         </q-card>
@@ -77,6 +77,7 @@
 <script setup lang="ts">
     import { ref } from 'vue'
     import { useRouter } from 'vue-router'
+    import { api } from 'boot/axios'
 
     const router = useRouter()
 
@@ -89,15 +90,26 @@
     const confirmPassword = ref<string>('')
 
     /* form submit handler */
-    async function onSubmit (): Promise<void> {
-        console.log('Register attempt', {
-            firstName: firstName.value,
-            lastName: lastName.value,
+    async function onSubmit () {
+        try {
+            const res = await api.post('/auth/register', {
+            first_name: firstName.value,
+            last_name: lastName.value,
             nickname: nickname.value,
             email: email.value,
             password: password.value,
-        })
-        await router.push('/auth/login')
+            })
+
+            console.log('Register success:', res.data)
+
+            void router.push('/auth/login')
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                console.error(err.message)
+            } else {
+                console.error('Unknown error', err)
+            }
+        }
     }
 
     async function goToLogin (): Promise<void> {
