@@ -27,21 +27,22 @@
                     label="Password"
                     type="password"
                     :rules="[val => !!val || 'Password is required']"
-                />
+                /> 
+                <q-btn label="Login" type="submit" color="primary" class="full-width" />
             </q-form>
 
-            <!-- buttons -->
             <q-card-actions class="column q-gutter-sm full-width">
-                <q-btn label="Login" type="submit" color="primary" class="full-width" />
                 <q-btn flat label="Register" color="secondary" @click="goToRegister"/>
             </q-card-actions>
+
         </q-card>
     </q-page>
 </template>
   
 <script setup lang="ts">
     import { ref } from 'vue'
-
+    import { api } from 'boot/axios'
+    import type { AxiosError } from 'axios'
     import { useRouter } from 'vue-router'
 
     /* router for navigation */
@@ -52,8 +53,19 @@
     const password = ref<string>('')
 
     /* form submit handler */
-    function onSubmit (): void {
+    async function onSubmit () {
         console.log('Login attempt', email.value, password.value)
+        try {
+            const res = await api.post('/auth/login', {
+                email: email.value,
+                password: password.value,
+            })
+
+            console.log('Login success:', res.data)
+        } catch (err: unknown) {
+            const e = err as AxiosError
+            console.error('Login failed:', e.response?.data || e.message)
+        }
     }
 
     /* navigate to register */

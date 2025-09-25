@@ -35,4 +35,28 @@ export default class AuthController {
       }
     })
   }
+  
+  public async login ({ request, response }: HttpContextContract) {
+    const { email, password } = request.only(['email', 'password'])
+
+    const user = await User.findBy('email', email)
+
+    if (!user) {
+        return response.unauthorized({ message: 'Invalid credentials' })
+    }
+
+    const isValid = await Hash.verify(user.password, password)
+    if (!isValid) {
+        return response.unauthorized({ message: 'Invalid credentials' })
+    }
+
+    return response.ok({
+        message: 'Login successful',
+        user: {
+          id: user.id,
+          nickname: user.nickname,
+          email: user.email,
+        },
+    })
+  }
 }
