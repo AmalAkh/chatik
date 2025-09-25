@@ -34,7 +34,6 @@
             <q-card-actions class="column q-gutter-sm full-width">
                 <q-btn flat label="Register" color="secondary" @click="goToRegister"/>
             </q-card-actions>
-
         </q-card>
     </q-page>
 </template>
