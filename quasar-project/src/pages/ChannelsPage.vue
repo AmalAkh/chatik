@@ -34,8 +34,8 @@
             <div class="chat-top-area">
                 <img class="q-message-avatar q-message-avatar--sent" src="https://cdn.quasar.dev/img/avatar4.jpg" aria-hidden="true">
                 <p>Test</p>
-                <q-btn outline round color="primary" icon="card_giftcard" />
-                <q-btn outline round color="primary" icon="card_giftcard" />
+              
+                <q-btn outline round color="primary" icon="info" />
             </div>
             
             <q-scroll-area class="chat-scroll-area no-scrollbar">
@@ -109,9 +109,9 @@
                 
             </q-scroll-area>
             <div class="bottom-message-area flex">
-                <q-btn flat round color="primary" icon="card_giftcard" />
+                <q-btn flat round color="primary" icon="attach_file" />
                 <q-input filled v-model="newMessage" placeholder="Message"  />
-                <q-btn flat round color="primary" icon="card_giftcard" />
+                <q-btn flat round color="primary" icon="send" />
 
             </div>
         </div>
