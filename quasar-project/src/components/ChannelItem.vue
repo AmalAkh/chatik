@@ -1,5 +1,5 @@
 <template>
-    <q-item>
+    <q-item clickable>
         <q-item-section top avatar>
             <q-avatar color="primary" text-color="white" icon="bluetooth" />
         </q-item-section>
@@ -18,3 +18,6 @@
         </q-item-section>
     </q-item>
 </template>
+<script setup lang="ts">
+   
+</script>
