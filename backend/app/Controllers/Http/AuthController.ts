@@ -41,7 +41,7 @@ export default class AuthController {
   }
   
   // handle user login
-  public async login ({ request, response }: HttpContextContract) {
+  public async login ({ request, response, auth }: HttpContextContract) {
     // extract login credentials
     const { email, password } = request.only(['email', 'password'])
 
@@ -58,10 +58,13 @@ export default class AuthController {
     if (!isValid) {
       return response.unauthorized({ message: 'Invalid credentials' })
     }
+    
+    const token = await auth.use('api').generate(user)
 
     // login successful
     return response.ok({
       message: 'Login successful',
+      token,
       user: {
         id: user.id,
         nickname: user.nickname,

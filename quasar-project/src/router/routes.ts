@@ -12,12 +12,16 @@ const routes: RouteRecordRaw[] = [
 
   {
     path: '/',
+    redirect: '/auth/login'
+  },
+
+  {
+    path: '/channels',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      {path:'/', redirect:"/channels"},
-      { path: '/channels', component: ()=> import("pages/ChannelsPage.vue") },
+      { path: '', component: () => import('pages/ChannelsPage.vue') },
     ]
-  },  
+  },
 
   {
     path: '/:catchAll(.*)*',
