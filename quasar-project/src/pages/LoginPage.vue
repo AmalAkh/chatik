@@ -61,6 +61,12 @@
             })
 
             console.log('Login success:', res.data)
+
+            // save token to localStorage
+            localStorage.setItem('token', res.data.token)
+
+            // redirect to channels
+            void router.push('/channels')
         } catch (err: unknown) {
             const e = err as AxiosError
             console.error('Login failed:', e.response?.data || e.message)

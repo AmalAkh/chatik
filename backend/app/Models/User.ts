@@ -1,5 +1,7 @@
+import { BaseModel, column, hasMany } from '@ioc:Adonis/Lucid/Orm'
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
+import { HasMany } from '@ioc:Adonis/Lucid/Orm'
+import ApiToken from 'App/Models/ApiToken'
 
 export default class User extends BaseModel {
   @column({ isPrimary: true })
@@ -25,5 +27,7 @@ export default class User extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
+
+  @hasMany(() => ApiToken)
+  public tokens: HasMany<typeof ApiToken>
 }
-  
