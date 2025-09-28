@@ -59,7 +59,9 @@ export default class AuthController {
       return response.unauthorized({ message: 'Invalid credentials' })
     }
     
-    const token = await auth.use('api').generate(user)
+    const token = await auth.use('api').login(user, {
+      expiresIn: '7days'
+    })    
 
     // login successful
     return response.ok({

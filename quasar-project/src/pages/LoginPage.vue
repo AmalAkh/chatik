@@ -63,7 +63,7 @@
             console.log('Login success:', res.data)
 
             // save token to localStorage
-            localStorage.setItem('token', res.data.token)
+            localStorage.setItem('token', res.data.token.token)
 
             // redirect to channels
             void router.push('/channels')

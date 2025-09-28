@@ -13,21 +13,32 @@
       <template v-slot:before>
         
         <div class="channels-area">
-            <q-input v-model="newMessage" :dense="true">
+            <!-- changed: added channel creation input -->
+            <q-input v-model="channelName" dense placeholder="New channel">
+                <template v-slot:append>
+                    <q-btn flat round dense icon="add" @click="createChannel" />
+                </template>
+            </q-input>
+
+            <!-- kept search bar -->
+            <q-input v-model="newMessage" dense>
                 <template v-slot:prepend>
                     <q-icon name="search" style="margin: 10px;" />
                 </template>
                 <template v-slot:append>
                     <q-icon name="close" style="margin: 10px;"  class="cursor-pointer" />
                 </template>
-
-                
             </q-input>
-            <q-scroll-area class=".channels-scrollable-area" style="height: 100%;">
-                
-                   
-                <channel-item v-for="n in 100" :key="n" @click="openChannel"/>
-                
+
+            <q-scroll-area class="channels-scrollable-area" style="height: 100%;">
+                <!-- changed: from n in 100 to channel in channels -->
+                <channel-item
+                    v-for="channel in channels"
+                    :key="channel.id"
+                    @click="openChannel"
+                >
+                    {{ channel.name }}
+                </channel-item>
             </q-scroll-area>
         </div>
       </template>
@@ -43,7 +54,6 @@
             </div>
             
             <q-scroll-area class="chat-scroll-area no-scrollbar">
-                
                 <q-chat-message
                     label="Sunday, 19th"
                 />
@@ -61,62 +71,11 @@
                     :text="['doing fine, how r you?']"
                     stamp="4 minutes ago"
                 />
-                <q-chat-message
-                    name="Jane"
-                    avatar="https://cdn.quasar.dev/img/avatar3.jpg"
-                    :text="['doing fine, how r you?']"
-                    stamp="4 minutes ago"
-                />
-                <q-chat-message
-                    name="Jane"
-                    avatar="https://cdn.quasar.dev/img/avatar3.jpg"
-                    :text="['doing fine, how r you?']"
-                    stamp="4 minutes ago"
-                />
-                <q-chat-message
-                    name="Jane"
-                    avatar="https://cdn.quasar.dev/img/avatar3.jpg"
-                    :text="['doing fine, how r you?']"
-                    stamp="4 minutes ago"
-                />
-                <q-chat-message
-                    name="Jane"
-                    avatar="https://cdn.quasar.dev/img/avatar3.jpg"
-                    :text="['doing fine, how r you?']"
-                    stamp="4 minutes ago"
-                />
-                <q-chat-message
-                    name="Jane"
-                    avatar="https://cdn.quasar.dev/img/avatar3.jpg"
-                    :text="['doing fine, how r you?']"
-                    stamp="4 minutes ago"
-                />
-                <q-chat-message
-                    name="Jane"
-                    avatar="https://cdn.quasar.dev/img/avatar3.jpg"
-                    :text="['doing fine, how r you?']"
-                    stamp="4 minutes ago"
-                />
-                <q-chat-message
-                    name="Jane"
-                    avatar="https://cdn.quasar.dev/img/avatar3.jpg"
-                    :text="['doing fine, how r you?']"
-                    stamp="4 minutes ago"
-                />
-                <q-chat-message
-                    name="Jane"
-                    avatar="https://cdn.quasar.dev/img/avatar3.jpg"
-                    :text="['doing fine, how r you?']"
-                    stamp="4 minutes ago"
-                />
-                
-                
             </q-scroll-area>
             <div class="bottom-message-area flex">
                 <q-btn flat round color="primary" icon="attach_file" />
                 <q-input class="new-message-input" filled v-model="newMessage" placeholder="Message"  />
                 <q-btn flat round color="primary" icon="send" />
-
             </div>
         </div>
       </template>
@@ -126,28 +85,63 @@
 </template>
   
 <script setup lang="ts">
-    import { ref } from 'vue';
+    import { ref, onMounted } from 'vue';
     import ChannelItem from 'src/components/ChannelItem.vue';
+    import { api } from 'boot/axios'; // changed: using axios instance
 
+    interface Channel {
+        id: number
+        name: string
+        isPrivate: boolean
+        ownerId: number
+    }
 
     const splitterModel = ref(25);
     const splitterDisabled = ref(false);
     const newMessage = ref("");
 
+    // changed: added for channels
+    const channels = ref<Channel[]>([]);
+    const channelName = ref("");
+
     if(window.screen.width < 1024)
     {
         splitterDisabled.value = true;
         splitterModel.value = 100;
-
     }
+
     function openChannel()
     {
         splitterModel.value = -10;
-       
     }
 
+    // changed: load channels from backend
+    async function loadChannels() {
+        try {
+            const res = await api.get('/channels');
+            channels.value = res.data;
+        } catch (err) {
+            console.error(err);
+        }
+    }
 
+    // changed: create channel
+    async function createChannel() {
+        if (!channelName.value) return;
+        try {
+            await api.post('/channels', { name: channelName.value, isPrivate: false }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+            channelName.value = "";
+            await loadChannels();
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    onMounted(async () => {
+        await loadChannels();
+    });
 </script>
+
 <style lang="scss">
 
     .chat-view
