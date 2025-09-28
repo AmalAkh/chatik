@@ -13,14 +13,18 @@
       <template v-slot:before>
         
         <div class="channels-area">
-            <!-- changed: added channel creation input -->
-            <q-input v-model="channelName" dense placeholder="New channel">
-                <template v-slot:append>
-                    <q-btn flat round dense icon="add" @click="createChannel" />
-                </template>
-            </q-input>
+            <div class="row justify-center items-center q-mt-sm">
+            <q-btn 
+                flat 
+                round 
+                color="primary" 
+                icon="add_circle" 
+                @click="showCreateDialog = true" 
+            />
+                <span class="text-subtitle2">Channels</span>
+            </div>
 
-            <!-- kept search bar -->
+
             <q-input v-model="newMessage" dense>
                 <template v-slot:prepend>
                     <q-icon name="search" style="margin: 10px;" />
@@ -31,14 +35,12 @@
             </q-input>
 
             <q-scroll-area class="channels-scrollable-area" style="height: 100%;">
-                <!-- changed: from n in 100 to channel in channels -->
                 <channel-item
                     v-for="channel in channels"
                     :key="channel.id"
+                    :name="channel.name"
                     @click="openChannel"
-                >
-                    {{ channel.name }}
-                </channel-item>
+                />
             </q-scroll-area>
         </div>
       </template>
@@ -81,6 +83,23 @@
       </template>
 
     </q-splitter>
+    <q-dialog v-model="showCreateDialog">
+      <q-card style="min-width: 350px">
+        <q-card-section>
+          <div class="text-h6">Create a new channel</div>
+        </q-card-section>
+
+        <q-card-section>
+          <q-input v-model="channelName" label="Channel name" autofocus />
+          <q-toggle v-model="isPrivate" label="Private channel" />
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
+          <q-btn color="primary" label="Create" @click="createChannel" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
     </q-page>
 </template>
   
@@ -96,9 +115,18 @@
         ownerId: number
     }
 
+    interface Props {
+        name: string
+        lastMessage?: string
+    }
+
+    defineProps<Props>()
+
     const splitterModel = ref(25);
     const splitterDisabled = ref(false);
     const newMessage = ref("");
+    const showCreateDialog = ref(false);
+    const isPrivate = ref(false)
 
     // changed: added for channels
     const channels = ref<Channel[]>([]);
@@ -129,9 +157,11 @@
     async function createChannel() {
         if (!channelName.value) return;
         try {
-            await api.post('/channels', { name: channelName.value, isPrivate: false }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
-            channelName.value = "";
-            await loadChannels();
+            await api.post('/channels', { name: channelName.value, isPrivate: isPrivate.value }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+            channelName.value = ""
+            isPrivate.value = false
+            showCreateDialog.value = false
+            await loadChannels()
         } catch (err) {
             console.error(err);
         }
