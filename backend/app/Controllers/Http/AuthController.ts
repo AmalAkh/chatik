@@ -4,7 +4,7 @@ import Hash from '@ioc:Adonis/Core/Hash'
 
 export default class AuthController {
   // handle user registration
-  public async register ({ request, response }: HttpContextContract) {
+  public async register({ request, response }: HttpContextContract) {
     // expected payload type
     type UserPayload = {
       first_name: string
@@ -39,9 +39,9 @@ export default class AuthController {
       }
     })
   }
-  
+
   // handle user login
-  public async login ({ request, response, auth }: HttpContextContract) {
+  public async login({ request, response, auth }: HttpContextContract) {
     // extract login credentials
     const { email, password } = request.only(['email', 'password'])
 
@@ -58,8 +58,10 @@ export default class AuthController {
     if (!isValid) {
       return response.unauthorized({ message: 'Invalid credentials' })
     }
-    
-    const token = await auth.use('api').generate(user)
+
+    const token = await auth.use('api').login(user, {
+      expiresIn: '7days'
+    })
 
     // login successful
     return response.ok({
