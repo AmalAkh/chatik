@@ -31,8 +31,6 @@ export default class ChannelsController {
     public async addMember({ request, auth, params }: HttpContextContract) {
         const { userId } = request.only(['userId'])
 
-        console.log(userId)
-
         const user = auth.user!
 
         const channel = await Channel.findOrFail(params.channelId)
@@ -56,5 +54,30 @@ export default class ChannelsController {
         })
 
         return { message: 'User added to the channel', member: newMember }
+    }
+
+    public async removeMember({ request, auth, params }: HttpContextContract) {
+        const { userId } = request.only(['userId'])
+
+        const user = auth.user!
+
+        const channel = await Channel.findOrFail(params.channelId)
+
+        if (channel.ownerId !== user.id) {
+            return { error: 'You are not the owner of the channel' }
+        }
+
+        const memberToRemove = await ChannelMember.query()
+            .where('channelId', channel.id)
+            .where('userId', userId)
+            .first()
+        
+        if (!memberToRemove) {
+            return { message: 'User is not a member of the channel' }
+        }
+
+        await memberToRemove.delete()
+
+        return { message: 'User removed from the channel' }
     }
 }

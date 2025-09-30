@@ -9,4 +9,5 @@ Route.group(() => {
   Route.get('/', 'ChannelsController.index')
   Route.post('/', 'ChannelsController.create')
   Route.post('/:channelId/add-member', 'ChannelsController.addMember')
+  Route.post('/:channelId/remove-member', 'ChannelsController.removeMember')
 }).prefix('/channels').middleware('auth')
