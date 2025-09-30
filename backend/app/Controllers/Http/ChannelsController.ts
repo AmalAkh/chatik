@@ -28,7 +28,7 @@ export default class ChannelsController {
         return channel
     }
 
-    public async addMember({ request, auth, params }: HttpContextContract) {
+    public async invite({ request, auth, params }: HttpContextContract) {
         const { userId } = request.only(['userId'])
 
         const user = auth.user!
@@ -56,7 +56,7 @@ export default class ChannelsController {
         return { message: 'User added to the channel', member: newMember }
     }
 
-    public async removeMember({ request, auth, params }: HttpContextContract) {
+    public async kick({ request, auth, params }: HttpContextContract) {
         const { userId } = request.only(['userId'])
 
         const user = auth.user!
