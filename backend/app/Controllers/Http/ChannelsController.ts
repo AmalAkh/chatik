@@ -83,20 +83,35 @@ export default class ChannelsController {
 
     public async show({ params }: HttpContextContract) {
         const channel = await Channel.query()
-          .where('id', params.channelId)
-          .preload('members')
-          .firstOrFail()
+            .where('id', params.channelId)
+            .preload('members')
+            .firstOrFail()
     
         const channelInfo = {
-          id: channel.id,
-          name: channel.name,
-          isPrivate: channel.isPrivate,
-          ownerId: channel.ownerId,
-          members: channel.members.map((member) => ({
+            id: channel.id,
+            name: channel.name,
+            isPrivate: channel.isPrivate,
+            ownerId: channel.ownerId,
+            members: channel.members.map((member) => ({
             userId: member.userId
-          }))
+            }))
         }
     
         return channelInfo
-      }
+    }
+
+    public async destroy({ params, auth }: HttpContextContract) {
+        const user = auth.user!
+        
+        const channel = await Channel.findOrFail(params.channelId)
+
+        if (channel.ownerId !== user.id) {
+            return { error: 'You are not the owner of this channel' }
+        }
+
+        await channel.delete()
+
+        return { message: 'Channel deleted successfully' }
+    }
+
 }
