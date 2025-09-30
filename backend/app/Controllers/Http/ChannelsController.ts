@@ -80,4 +80,23 @@ export default class ChannelsController {
 
         return { message: 'User removed from the channel' }
     }
+
+    public async show({ params }: HttpContextContract) {
+        const channel = await Channel.query()
+          .where('id', params.channelId)
+          .preload('members')
+          .firstOrFail()
+    
+        const channelInfo = {
+          id: channel.id,
+          name: channel.name,
+          isPrivate: channel.isPrivate,
+          ownerId: channel.ownerId,
+          members: channel.members.map((member) => ({
+            userId: member.userId
+          }))
+        }
+    
+        return channelInfo
+      }
 }
