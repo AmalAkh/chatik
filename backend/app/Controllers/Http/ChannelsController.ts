@@ -27,4 +27,34 @@ export default class ChannelsController {
 
         return channel
     }
+
+    public async addMember({ request, auth, params }: HttpContextContract) {
+        const { userId } = request.only(['userId'])
+
+        console.log(userId)
+
+        const user = auth.user!
+
+        const channel = await Channel.findOrFail(params.channelId)
+
+        if (channel.ownerId !== user.id) {
+            return { error: 'You are not the owner of the channel' }
+        }
+
+        const existingMember = await ChannelMember.query()
+            .where('channelId', channel.id)
+            .where('userId', userId)
+            .first()
+        
+        if (existingMember) {
+            return { message: 'User is already a member of the channel' }
+        }
+
+        const newMember = await ChannelMember.create({
+            channelId: channel.id,
+            userId
+        })
+
+        return { message: 'User added to the channel', member: newMember }
+    }
 }

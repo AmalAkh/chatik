@@ -8,4 +8,5 @@ Route.group(() => {
 Route.group(() => {
   Route.get('/', 'ChannelsController.index')
   Route.post('/', 'ChannelsController.create')
+  Route.post('/:channelId/add-member', 'ChannelsController.addMember')
 }).prefix('/channels').middleware('auth')
