@@ -105,11 +105,20 @@ const isPrivate = ref(false)
 const channels = ref<Channel[]>([])
 const channelName = ref("")
 
-// handle responsive view
-if (window.screen.width < 1024) {
-    splitterDisabled.value = true
-    splitterModel.value = 100
-}
+
+
+addEventListener("resize", () => 
+{
+    if (window.innerWidth < 1024) 
+    {
+        splitterDisabled.value = true
+        splitterModel.value = 100
+    }else
+    {
+        splitterDisabled.value = false;
+        splitterModel.value = 25
+    }
+})
 
 // open channel (mobile: switches view)
 function openChannel() {
