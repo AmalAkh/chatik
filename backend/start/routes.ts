@@ -8,4 +8,8 @@ Route.group(() => {
 Route.group(() => {
   Route.get('/', 'ChannelsController.index')
   Route.post('/', 'ChannelsController.create')
+  Route.post('/:channelId/invite', 'ChannelsController.invite')
+  Route.post('/:channelId/kick', 'ChannelsController.kick')
+  Route.get('/:channelId/', 'ChannelsController.show')
+  Route.delete('/:channelId/', 'ChannelsController.destroy')
 }).prefix('/channels').middleware('auth')
