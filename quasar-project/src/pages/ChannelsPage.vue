@@ -86,6 +86,12 @@
 import { ref, onMounted } from 'vue'
 import ChannelItem from 'src/components/ChannelItem.vue'
 import { api } from 'boot/axios'
+import { io } from "socket.io-client";
+import { useRouter } from 'vue-router';
+const router = useRouter();
+
+
+
 
 // interface for channel object
 interface Channel {
@@ -156,6 +162,30 @@ async function createChannel() {
 // load channels on page mount
 onMounted(async () => {
     await loadChannels()
+
+
+    const socket = io("http://localhost:3333", 
+    {
+        extraHeaders: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+    })
+    socket.on("connect", () => {
+        console.log("Connected!", socket.id);
+    });
+
+    socket.on("disconnect", (reason) => {
+        console.log("Disconnected:", reason);
+    });
+
+    socket.on("connect_error", async (err) => {
+        
+        console.log("Connection error:", err.message); // <-- will fire if auth fails
+        await router.push("/auth/login");
+    });
+    
+
+
 })
 </script>
 
