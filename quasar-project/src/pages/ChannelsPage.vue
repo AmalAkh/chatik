@@ -35,7 +35,7 @@
             <template v-slot:after>
                 <div class="flex full-height chat-view">
                     <div class="chat-top-area">
-                        <q-btn class="back-button" flat round color="primary" size="md" icon="arrow_back"
+                        <q-btn class="back-button" v-show="splitterDisabled" flat round color="primary" size="md" icon="arrow_back"
                             @click="splitterModel = 100" />
                         <img class="q-message-avatar q-message-avatar--sent"
                             src="https://cdn.quasar.dev/img/avatar4.jpg" aria-hidden="true">
@@ -123,10 +123,17 @@ const channelName = ref("")
 const chatMessagesScrollArea = ref<any>(null);
 
 // handle responsive view
-if (window.screen.width < 1024) {
-    splitterDisabled.value = true
-    splitterModel.value = 100
-}
+window.addEventListener("resize", ()=>
+{
+    if (window.innerWidth < 1024) {
+        splitterDisabled.value = true
+        splitterModel.value = 100
+    }else
+    {
+        splitterDisabled.value = false;
+        splitterModel.value = 25;
+    }
+})
 
 // open channel (mobile: switches view)
 
@@ -234,6 +241,11 @@ async function openChannel(channel:Channel) {
         chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100,10)
 
     },100)
+
+    if (window.innerWidth < 1024) {
+       
+        splitterModel.value = 0
+    }
     
 }
 async function sendMessage()
