@@ -24,8 +24,9 @@
 
                     <!-- channels list -->
                     <q-scroll-area class="channels-scrollable-area" style="height: 100%;">
-                        <channel-item v-for="channel in channels" :key="channel.id" :name="channel.name"
-                            @click="openChannel" />
+                        <channel-item v-for="channel in channels" :key="channel.id" :name="channel.name" 
+                        :class="{'selected':channel.id == currentChannel?.id}"
+                            @click="openChannel(channel)" />
                     </q-scroll-area>
                 </div>
             </template>
@@ -38,24 +39,25 @@
                             @click="splitterModel = 100" />
                         <img class="q-message-avatar q-message-avatar--sent"
                             src="https://cdn.quasar.dev/img/avatar4.jpg" aria-hidden="true">
-                        <p>Test</p>
+                        <p>{{ currentChannel?.name }}</p>
                         <q-btn outline round color="primary" size="md" icon="info" />
                     </div>
 
                     <!-- chat messages -->
-                    <q-scroll-area class="chat-scroll-area no-scrollbar">
+                    <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
                         <q-chat-message label="Sunday, 19th" />
-                        <q-chat-message name="me" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
-                            :text="['hey, how are you?']" sent stamp="7 minutes ago" />
-                        <q-chat-message name="Jane" avatar="https://cdn.quasar.dev/img/avatar3.jpg"
-                            :text="['doing fine, how r you?']" stamp="4 minutes ago" />
+                        <q-chat-message v-for="message in messages" name="me" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
+                            :text="[message.text]" :sent="message.local" :key="message.id.toString()+message.userId.toString()" stamp="7 minutes ago" />
+                            
+                        
+                       
                     </q-scroll-area>
 
                     <!-- input area -->
                     <div class="bottom-message-area flex">
                         <q-btn flat round color="primary" icon="attach_file" />
                         <q-input class="new-message-input" filled v-model="newMessage" placeholder="Message" />
-                        <q-btn flat round color="primary" icon="send" />
+                        <q-btn flat round color="primary" icon="send" @click="sendMessage" />
                     </div>
                 </div>
             </template>
@@ -83,9 +85,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import ChannelItem from 'src/components/ChannelItem.vue'
 import { api } from 'boot/axios'
+import { io } from "socket.io-client";
+import { useRouter } from 'vue-router';
+const router = useRouter();
+
 
 // interface for channel object
 interface Channel {
@@ -95,6 +101,15 @@ interface Channel {
     ownerId: number
 }
 
+interface ChannelMessage {
+    id: number
+    text:string
+    local:boolean
+    userId: number
+    channelId:number
+}
+
+
 const splitterModel = ref(25)
 const splitterDisabled = ref(false)
 const newMessage = ref("")
@@ -103,7 +118,9 @@ const isPrivate = ref(false)
 
 // list of channels
 const channels = ref<Channel[]>([])
+const currentChannel = ref<Channel>();
 const channelName = ref("")
+const chatMessagesScrollArea = ref<any>(null);
 
 // handle responsive view
 if (window.screen.width < 1024) {
@@ -112,9 +129,7 @@ if (window.screen.width < 1024) {
 }
 
 // open channel (mobile: switches view)
-function openChannel() {
-    splitterModel.value = -10
-}
+
 
 // load channels from backend
 async function loadChannels() {
@@ -143,11 +158,102 @@ async function createChannel() {
         console.error(err)
     }
 }
-
+const currentSocket = ref()
 // load channels on page mount
 onMounted(async () => {
-    await loadChannels()
+    await loadChannels();
+    currentSocket.value = io("http://localhost:3333", 
+    {
+        extraHeaders: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+        }
+    })
+    currentSocket.value.on("connect", () => {
+        console.log("Connected!", currentSocket.value.id);
+    });
+
+    currentSocket.value.on("disconnect", (reason:any) => {
+        console.log("Disconnected:", reason);
+    });
+
+    currentSocket.value.on("connect_error", async (err:any) => {
+        
+        console.log("Connection error:", err.message); // <-- will fire if auth fails
+        await router.push("/auth/login");
+    });
+
+    currentSocket.value.on("new_message", async (msg:ChannelMessage)=>
+    {
+        
+        if(msg.channelId == currentChannel.value?.id)
+        {
+            msg.local = msg.userId.toString() == localStorage.getItem("userid");
+            messages.value?.push(msg);
+            await nextTick();
+            chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
+
+        }
+    })
+    
+    
 })
+
+const messages = ref<ChannelMessage[]>();
+async function loadMessages()
+{
+    const res = await api.get(`/messages/${currentChannel.value!.id}`)
+    
+    messages.value = res.data.map((message:ChannelMessage)=>
+    {
+       
+        let msg = snakeToCamel(message)
+        msg.local = msg.userId == localStorage.getItem("userid")
+        return msg;
+    }) as ChannelMessage[]
+    
+    
+    
+}
+function snakeToCamel(obj: any): any {
+    const result: any = {};
+    for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            // Convert snake_case to camelCase
+            const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+            result[camelKey] = obj[key];
+        }
+    }
+    return result;
+}
+async function openChannel(channel:Channel) {
+    currentChannel.value = channel;
+    void loadMessages()
+    await nextTick();
+    setTimeout(()=>
+    {
+        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100,10)
+
+    },100)
+    
+}
+async function sendMessage()
+{
+    if(currentChannel.value)
+    {
+        let response = await api.post(`/messages/${currentChannel.value.id}`, {text:newMessage.value});
+        let newMsg = snakeToCamel(response.data)
+        newMsg.local = true;
+        messages.value?.push(newMsg as ChannelMessage);
+        currentSocket.value.emit("new_message", newMsg);
+        await nextTick();
+        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
+        newMessage.value = "";
+
+        
+    }
+        
+}
+    
 </script>
 
 <style lang="scss">

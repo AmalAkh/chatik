@@ -21,3 +21,13 @@
         </q-item-section>
     </q-item>
 </template>
+<style lang="scss" scoped>
+    .q-item
+    {
+        &.selected
+        {
+            background-color: #f6f6f6;
+        }
+    }
+
+</style>
