@@ -65,6 +65,8 @@
             // save token to localStorage
             localStorage.setItem('token', res.data.token.token)
 
+            localStorage.setItem('userid', res.data.user.id)
+
             // redirect to channels
             void router.push('/channels')
         } catch (err: unknown) {

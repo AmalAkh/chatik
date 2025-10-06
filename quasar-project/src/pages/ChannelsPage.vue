@@ -24,8 +24,9 @@
 
                     <!-- channels list -->
                     <q-scroll-area class="channels-scrollable-area" style="height: 100%;">
-                        <channel-item v-for="channel in channels" :key="channel.id" :name="channel.name"
-                            @click="openChannel" />
+                        <channel-item v-for="channel in sortedChannels"  :key="channel.id" :last-message="channel.lastMessage"  :name="channel.name" 
+                        :class="{'selected':channel.id == currentChannel?.id}"
+                            @click="openChannel(channel)" />
                     </q-scroll-area>
                 </div>
             </template>
@@ -34,28 +35,29 @@
             <template v-slot:after>
                 <div class="flex full-height chat-view">
                     <div class="chat-top-area">
-                        <q-btn class="back-button" flat round color="primary" size="md" icon="arrow_back"
+                        <q-btn class="back-button" v-show="splitterDisabled" flat round color="primary" size="md" icon="arrow_back"
                             @click="splitterModel = 100" />
                         <img class="q-message-avatar q-message-avatar--sent"
                             src="https://cdn.quasar.dev/img/avatar4.jpg" aria-hidden="true">
-                        <p>Test</p>
+                        <p>{{ currentChannel?.name }}</p>
                         <q-btn outline round color="primary" size="md" icon="info" />
                     </div>
 
                     <!-- chat messages -->
-                    <q-scroll-area class="chat-scroll-area no-scrollbar">
+                    <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
                         <q-chat-message label="Sunday, 19th" />
-                        <q-chat-message name="me" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
-                            :text="['hey, how are you?']" sent stamp="7 minutes ago" />
-                        <q-chat-message name="Jane" avatar="https://cdn.quasar.dev/img/avatar3.jpg"
-                            :text="['doing fine, how r you?']" stamp="4 minutes ago" />
+                        <q-chat-message v-for="message in messages" :name="message.sender.nickname" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
+                            :text="[message.text]" :sent="message.local" :key="message.id.toString()+message.userId.toString()" :stamp="message.date.toString()" />
+                            
+                        
+                       
                     </q-scroll-area>
 
                     <!-- input area -->
                     <div class="bottom-message-area flex">
                         <q-btn flat round color="primary" icon="attach_file" />
                         <q-input class="new-message-input" filled v-model="newMessage" placeholder="Message" />
-                        <q-btn flat round color="primary" icon="send" />
+                        <q-btn flat round color="primary" icon="send" @click="sendMessage" />
                     </div>
                 </div>
             </template>
@@ -83,23 +85,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import ChannelItem from 'src/components/ChannelItem.vue'
 import { api } from 'boot/axios'
 import { io } from "socket.io-client";
 import { useRouter } from 'vue-router';
+import type { Channel, ChannelMessage, User } from 'src/models';
+
 const router = useRouter();
 
 
-
-
-// interface for channel object
-interface Channel {
-    id: number
-    name: string
-    isPrivate: boolean
-    ownerId: number
-}
 
 const splitterModel = ref(25)
 const splitterDisabled = ref(false)
@@ -109,38 +104,56 @@ const isPrivate = ref(false)
 
 // list of channels
 const channels = ref<Channel[]>([])
+const currentChannel = ref<Channel>();
 const channelName = ref("")
+const chatMessagesScrollArea = ref<any>(null);
 
-
-
-addEventListener("resize", () => 
+// handle responsive view
+window.addEventListener("resize", ()=>
 {
-    if (window.innerWidth < 1024) 
-    {
+    if (window.innerWidth < 1024) {
         splitterDisabled.value = true
         splitterModel.value = 100
     }else
     {
         splitterDisabled.value = false;
-        splitterModel.value = 25
+        splitterModel.value = 25;
     }
 })
 
 // open channel (mobile: switches view)
-function openChannel() {
-    splitterModel.value = -10
-}
+
 
 // load channels from backend
 async function loadChannels() {
     try {
         const res = await api.get('/channels')
-        channels.value = res.data
+        channels.value = res.data.map((channel:Channel)=>
+        {
+            if(channel.lastMessage)
+                convertMessageDate(channel.lastMessage);
+            return channel;
+        })
     } catch (err) {
         console.error(err)
     }
 }
+function convertMessageDate(msg:ChannelMessage)
+{
+    msg.date = new Date(msg.date);
+}
+const sortedChannels = computed(()=>
+{
+    return [...channels.value].sort((channel1:Channel, channel2:Channel)=>
+    {
+        
 
+        const t1 = channel1.lastMessage ? channel1.lastMessage.date.getTime() : 0;
+        const t2 = channel2.lastMessage ? channel2.lastMessage.date.getTime() : 0;
+        return -1*(t1-t2);
+
+    })
+})
 // create new channel
 async function createChannel() {
     if (!channelName.value) return
@@ -158,35 +171,125 @@ async function createChannel() {
         console.error(err)
     }
 }
-
+const currentSocket = ref()
 // load channels on page mount
 onMounted(async () => {
-    await loadChannels()
-
-
-    const socket = io("http://localhost:3333", 
+    await loadChannels();
+    currentSocket.value = io("http://localhost:3333", 
     {
         extraHeaders: {
             Authorization: `Bearer ${localStorage.getItem("token")}`
         }
     })
-    socket.on("connect", () => {
-        console.log("Connected!", socket.id);
+    currentSocket.value.on("connect", () => {
+        console.log("Connected!", currentSocket.value.id);
     });
 
-    socket.on("disconnect", (reason) => {
+    currentSocket.value.on("disconnect", (reason:any) => {
         console.log("Disconnected:", reason);
     });
 
-    socket.on("connect_error", async (err) => {
+    currentSocket.value.on("connect_error", async (err:any) => {
         
         console.log("Connection error:", err.message); // <-- will fire if auth fails
         await router.push("/auth/login");
     });
+
+    currentSocket.value.on("new_message", async (msg:ChannelMessage)=>
+    {
+        convertMessageDate(msg);
+        if(msg.channelId == currentChannel.value?.id)
+        {
+            msg.local = msg.userId.toString() == localStorage.getItem("userid");
+            messages.value?.push(msg);
+            await nextTick();
+            chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
+
+        }
+        const targetChannel = channels.value.find((channel)=>
+        {
+            return channel.id == msg.channelId;
+        })
+        
+        if(targetChannel)
+            targetChannel.lastMessage = msg;
+    })
     
-
-
+    
 })
+
+const messages = ref<ChannelMessage[]>();
+async function loadMessages()
+{
+    const res = await api.get(`/messages/${currentChannel.value!.id}`)
+    
+    messages.value = res.data.map((message:ChannelMessage)=>
+    {
+       
+        let msg = snakeToCamel(message)
+        msg.local = msg.userId == localStorage.getItem("userid")
+        convertMessageDate(msg);
+        return msg;
+    }) as ChannelMessage[]
+    
+    
+    
+}
+function snakeToCamel(obj: any): any {
+    const result: any = {};
+    for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            // Convert snake_case to camelCase
+            const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+            result[camelKey] = obj[key];
+        }
+    }
+    return result;
+}
+async function openChannel(channel:Channel) {
+    currentChannel.value = channel;
+    void loadMessages()
+    await nextTick();
+    setTimeout(()=>
+    {
+        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100,10)
+
+    },100)
+
+     if (window.innerWidth < 1024) {
+        splitterDisabled.value = true
+        splitterModel.value = 0
+    }
+    
+}
+async function sendMessage()
+{
+    if(currentChannel.value)
+    {
+        let response = await api.post(`/messages/${currentChannel.value.id}`, {text:newMessage.value});
+        let newMsg = snakeToCamel(response.data)
+        newMsg.local = true;
+        messages.value?.push(newMsg as ChannelMessage);
+        currentSocket.value.emit("new_message", newMsg);
+        await nextTick();
+        convertMessageDate(newMsg);
+        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
+        
+        const targetChannel = channels.value.find((channel)=>
+        {
+            return channel.id == newMsg.channelId;
+        })
+        
+        if(targetChannel)
+            targetChannel.lastMessage = newMsg;
+
+        newMessage.value = "";
+
+        
+    }
+        
+}
+    
 </script>
 
 <style lang="scss">

@@ -63,7 +63,10 @@ export default defineConfigWithVueTs(
 
     // add your custom rules here
     rules: {
-      'prefer-promise-reject-errors': 'off',
+      "no-explicit-any": "off",
+      '@typescript-eslint/no-explicit-any': 'off',
+      "prefer-const":"off",
+      "@typescript-eslint/no-unused-vars":"off",
 
       // allow debugger during development only
       'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off',
