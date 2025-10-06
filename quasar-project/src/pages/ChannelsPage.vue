@@ -24,7 +24,7 @@
 
                     <!-- channels list -->
                     <q-scroll-area class="channels-scrollable-area" style="height: 100%;">
-                        <channel-item v-for="channel in channels"  :key="channel.id" :last-message="channel.lastMessage"  :name="channel.name" 
+                        <channel-item v-for="channel in sortedChannels"  :key="channel.id" :last-message="channel.lastMessage"  :name="channel.name" 
                         :class="{'selected':channel.id == currentChannel?.id}"
                             @click="openChannel(channel)" />
                     </q-scroll-area>
@@ -85,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import ChannelItem from 'src/components/ChannelItem.vue'
 import { api } from 'boot/axios'
 import { io } from "socket.io-client";
@@ -128,12 +128,32 @@ window.addEventListener("resize", ()=>
 async function loadChannels() {
     try {
         const res = await api.get('/channels')
-        channels.value = res.data
+        channels.value = res.data.map((channel:Channel)=>
+        {
+            if(channel.lastMessage)
+                convertMessageDate(channel.lastMessage);
+            return channel;
+        })
     } catch (err) {
         console.error(err)
     }
 }
+function convertMessageDate(msg:ChannelMessage)
+{
+    msg.date = new Date(msg.date);
+}
+const sortedChannels = computed(()=>
+{
+    return [...channels.value].sort((channel1:Channel, channel2:Channel)=>
+    {
+        
 
+        const t1 = channel1.lastMessage ? channel1.lastMessage.date.getTime() : 0;
+        const t2 = channel2.lastMessage ? channel2.lastMessage.date.getTime() : 0;
+        return -1*(t1-t2);
+
+    })
+})
 // create new channel
 async function createChannel() {
     if (!channelName.value) return
@@ -177,7 +197,7 @@ onMounted(async () => {
 
     currentSocket.value.on("new_message", async (msg:ChannelMessage)=>
     {
-      
+        convertMessageDate(msg);
         if(msg.channelId == currentChannel.value?.id)
         {
             msg.local = msg.userId.toString() == localStorage.getItem("userid");
@@ -208,6 +228,7 @@ async function loadMessages()
        
         let msg = snakeToCamel(message)
         msg.local = msg.userId == localStorage.getItem("userid")
+        convertMessageDate(msg);
         return msg;
     }) as ChannelMessage[]
     
@@ -251,7 +272,7 @@ async function sendMessage()
         messages.value?.push(newMsg as ChannelMessage);
         currentSocket.value.emit("new_message", newMsg);
         await nextTick();
-        console.log(newMsg);
+        convertMessageDate(newMsg);
         chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
         
         const targetChannel = channels.value.find((channel)=>
