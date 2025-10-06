@@ -1,4 +1,4 @@
-import { BaseModel, column, hasMany, HasMany, HasOne } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, hasMany, HasMany, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import ChannelMember from 'App/Models/ChannelMember'
 import Channel from './Channel'
 import { DateTime } from 'luxon'
@@ -18,7 +18,11 @@ export default class Message extends BaseModel {
   @column()
   public userId:number
 
-  @column()
+  @hasOne(() => User, 
+  {
+    foreignKey:"id",
+    localKey:"userId"
+  })
   public sender: HasOne<typeof User>
 
   @column()

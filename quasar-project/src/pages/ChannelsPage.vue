@@ -46,8 +46,8 @@
                     <!-- chat messages -->
                     <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
                         <q-chat-message label="Sunday, 19th" />
-                        <q-chat-message v-for="message in messages" name="me" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
-                            :text="[message.text]" :sent="message.local" :key="message.id.toString()+message.userId.toString()" stamp="7 minutes ago" />
+                        <q-chat-message v-for="message in messages" :name="message.sender.nickname" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
+                            :text="[message.text]" :sent="message.local" :key="message.id.toString()+message.userId.toString()" :stamp="message.date.toString()" />
                             
                         
                        
@@ -90,15 +90,20 @@ import ChannelItem from 'src/components/ChannelItem.vue'
 import { api } from 'boot/axios'
 import { io } from "socket.io-client";
 import { useRouter } from 'vue-router';
+
 const router = useRouter();
 
-
+interface User
+{
+    nickname:string
+}
 // interface for channel object
 interface Channel {
     id: number
     name: string
     isPrivate: boolean
     ownerId: number
+    sender:User
 }
 
 interface ChannelMessage {
@@ -107,6 +112,8 @@ interface ChannelMessage {
     local:boolean
     userId: number
     channelId:number
+    date:Date
+    sender:User
 }
 
 
@@ -242,8 +249,8 @@ async function openChannel(channel:Channel) {
 
     },100)
 
-    if (window.innerWidth < 1024) {
-       
+     if (window.innerWidth < 1024) {
+        splitterDisabled.value = true
         splitterModel.value = 0
     }
     
