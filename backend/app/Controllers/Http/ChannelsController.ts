@@ -6,8 +6,19 @@ export default class ChannelsController {
     public async index({ auth }: HttpContextContract) {
         const user = auth.user!
         const channels = await Channel.query()
-            .whereHas('members', (q) => q.where('user_id', user.id))
-        return channels
+            .whereHas('members', (q) => q.where('user_id', user.id)).preload('lastMessage', (messageQuery) => {
+                messageQuery
+                .preload('sender', (senderQuery) => {
+                    senderQuery.select(['nickname'])
+                })
+            
+            });
+            
+           const result = channels.map(channel => ({
+            ...channel.serialize(),
+            lastMessage: channel.lastMessage[0] || null,
+            }))
+        return result
     }
 
     public async create({ request, auth }: HttpContextContract) {

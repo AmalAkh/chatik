@@ -24,7 +24,7 @@
 
                     <!-- channels list -->
                     <q-scroll-area class="channels-scrollable-area" style="height: 100%;">
-                        <channel-item v-for="channel in channels" :key="channel.id" :name="channel.name" 
+                        <channel-item v-for="channel in channels"  :key="channel.id" :last-message="channel.lastMessage"  :name="channel.name" 
                         :class="{'selected':channel.id == currentChannel?.id}"
                             @click="openChannel(channel)" />
                     </q-scroll-area>
@@ -90,31 +90,10 @@ import ChannelItem from 'src/components/ChannelItem.vue'
 import { api } from 'boot/axios'
 import { io } from "socket.io-client";
 import { useRouter } from 'vue-router';
+import type { Channel, ChannelMessage, User } from 'src/models';
 
 const router = useRouter();
 
-interface User
-{
-    nickname:string
-}
-// interface for channel object
-interface Channel {
-    id: number
-    name: string
-    isPrivate: boolean
-    ownerId: number
-    sender:User
-}
-
-interface ChannelMessage {
-    id: number
-    text:string
-    local:boolean
-    userId: number
-    channelId:number
-    date:Date
-    sender:User
-}
 
 
 const splitterModel = ref(25)
@@ -198,7 +177,7 @@ onMounted(async () => {
 
     currentSocket.value.on("new_message", async (msg:ChannelMessage)=>
     {
-        
+      
         if(msg.channelId == currentChannel.value?.id)
         {
             msg.local = msg.userId.toString() == localStorage.getItem("userid");
@@ -207,6 +186,13 @@ onMounted(async () => {
             chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
 
         }
+        const targetChannel = channels.value.find((channel)=>
+        {
+            return channel.id == msg.channelId;
+        })
+        
+        if(targetChannel)
+            targetChannel.lastMessage = msg;
     })
     
     
@@ -265,7 +251,17 @@ async function sendMessage()
         messages.value?.push(newMsg as ChannelMessage);
         currentSocket.value.emit("new_message", newMsg);
         await nextTick();
+        console.log(newMsg);
         chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
+        
+        const targetChannel = channels.value.find((channel)=>
+        {
+            return channel.id == newMsg.channelId;
+        })
+        
+        if(targetChannel)
+            targetChannel.lastMessage = newMsg;
+
         newMessage.value = "";
 
         

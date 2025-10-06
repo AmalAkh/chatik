@@ -67,7 +67,8 @@ Ws.io.on('connection', (socket) => {
     
     socket.on("new_message", (msg)=>
     {
-        socket.to(msg.channelId).emit("new_message", msg);
+        socket.to(msg.channelId.toString()).emit("new_message", msg);
+       
        
     })
 })

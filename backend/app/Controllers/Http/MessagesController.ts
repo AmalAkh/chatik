@@ -21,7 +21,7 @@ export default class MessagesController {
         const user = auth.user!
         const userId = user.id;
         let message = await Message.create({text, channelId:params.channelId , userId})
-        message.refresh()
+        await message.refresh()
         await message.load('sender', (query) => {
             query.select('nickname')
         })
