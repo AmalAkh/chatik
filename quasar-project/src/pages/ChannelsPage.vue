@@ -44,11 +44,17 @@
                     </div>
 
                     <!-- chat messages -->
+                     
                     <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
-                        <q-chat-message label="Sunday, 19th" />
-                        <q-chat-message v-for="message in messages" :name="message.sender.nickname" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
-                            :text="[message.text]" :sent="message.local" :key="message.id.toString()+message.userId.toString()" :stamp="message.date.toString()" />
-                            
+                        <q-infinite-scroll v-if="currentChannel" @load="loadMoreMessages" ref="chatMessagesInfiniteScroll" reverse>
+                            <template v-slot:loading>
+                                <div class="row justify-center q-my-md">
+                                <q-spinner-dots color="primary" size="40px" />
+                                </div>
+                            </template>
+                            <q-chat-message v-for="message in messages" :name="message.sender.nickname" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
+                                :text="[message.text]" :sent="message.local" :key="message.id.toString()+message.userId.toString()" :stamp="message.date.toString()" />
+                        </q-infinite-scroll>
                         
                        
                     </q-scroll-area>
@@ -106,8 +112,10 @@ const isPrivate = ref(false)
 const channels = ref<Channel[]>([])
 const currentChannel = ref<Channel>();
 const channelName = ref("")
-const chatMessagesScrollArea = ref<any>(null);
 
+const chatMessagesScrollArea = ref<any>(null);
+const chatMessagesInfiniteScroll = ref<any>(null);
+ 
 // handle responsive view
 window.addEventListener("resize", ()=>
 {
@@ -213,27 +221,40 @@ onMounted(async () => {
         
         if(targetChannel)
             targetChannel.lastMessage = msg;
+        currentOffset+=1;
+        totalMessagesAmount+=1;
     })
     
     
 })
 
 const messages = ref<ChannelMessage[]>();
-async function loadMessages()
+let totalMessagesAmount = 0;
+async function loadMessages(offset:number = 0)
 {
-    const res = await api.get(`/messages/${currentChannel.value!.id}`)
-    
-    messages.value = res.data.map((message:ChannelMessage)=>
+    const res = await api.get(`/messages/${currentChannel.value!.id}?offset=${offset}`)
+    messages.value = [...res.data.messages.map((message:ChannelMessage)=>
     {
-       
+    
         let msg = snakeToCamel(message)
         msg.local = msg.userId == localStorage.getItem("userid")
         convertMessageDate(msg);
         return msg;
-    }) as ChannelMessage[]
+    }) as ChannelMessage[],...messages.value ?? []]
     
+    totalMessagesAmount = res.data.total;
     
-    
+}
+
+let currentOffset = 20;
+async function loadMoreMessages(index:any,done:any)
+{
+    if(currentOffset < totalMessagesAmount)
+    {
+        await loadMessages(currentOffset);
+        currentOffset+=20;
+    }
+    done();
 }
 function snakeToCamel(obj: any): any {
     const result: any = {};
@@ -246,17 +267,28 @@ function snakeToCamel(obj: any): any {
     }
     return result;
 }
+
+const isInfiniteScrolligDisabled = ref(true);
 async function openChannel(channel:Channel) {
+   
+    //chatMessagesInfiniteScroll.value.stop();
+    totalMessagesAmount = 0;
+    currentOffset = 20;
     currentChannel.value = channel;
-    void loadMessages()
+    
+    await loadMessages();
     await nextTick();
+    
+    
     setTimeout(()=>
     {
-        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100,10)
-
+        
+        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100,10);
+        isInfiniteScrolligDisabled.value = false
+        //chatMessagesInfiniteScroll.value.resume();
     },100)
 
-     if (window.innerWidth < 1024) {
+    if (window.innerWidth < 1024) {
         splitterDisabled.value = true
         splitterModel.value = 0
     }
@@ -284,6 +316,8 @@ async function sendMessage()
             targetChannel.lastMessage = newMsg;
 
         newMessage.value = "";
+        currentOffset+=1;
+        totalMessagesAmount+=1;
 
         
     }

@@ -7,14 +7,20 @@ export default class MessagesController {
 
     public async index({ request, auth, params }: HttpContextContract) {
 
-        
+        const offset = request.input('offset', 0) // 0 is the default if not provided
+        console.log(offset);
+        const totalMessages = await Message.query()
+        .where('channel_id', params.channelId)
+        .count('* as total')
         let messages = await Message.query().where("channel_id", params.channelId).preload('sender', (query)=>
         {
             query.select("nickname");
-        });
-
-        return messages;
+        }).orderBy("id", "desc").offset(offset).limit(20);
         
+        return {
+            total: totalMessages[0].$extras.total,
+            messages: messages.reverse(),
+        }
     }
     public async create({ request, auth, params }: HttpContextContract) {
         const { text } = request.only(['text'])
