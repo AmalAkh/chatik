@@ -1,17 +1,27 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Channel from 'App/Models/Channel'
+import ChannelMember from 'App/Models/ChannelMember'
 import Message from 'App/Models/ChannelMessage'
 
 
 export default class MessagesController {
 
-    public async index({ request, auth, params }: HttpContextContract) {
+    public async index({ request, auth, params, response }: HttpContextContract) {
 
         const offset = request.input('offset', 0) // 0 is the default if not provided
-        console.log(offset);
+        
+
+        const channelMemeberShip = await ChannelMember.query().where('channel_id', params.channelId).where("user_id", auth.user?.id!)
+        if(!channelMemeberShip.length )
+        {
+            return response.unauthorized({
+            error: 'You are not a member of this channel.'})
+        }
         const totalMessages = await Message.query()
         .where('channel_id', params.channelId)
-        .count('* as total')
+        .count('* as total');
+
+
         let messages = await Message.query().where("channel_id", params.channelId).preload('sender', (query)=>
         {
             query.select("nickname");

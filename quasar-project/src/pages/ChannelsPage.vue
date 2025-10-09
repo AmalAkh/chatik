@@ -272,6 +272,7 @@ const isInfiniteScrolligDisabled = ref(true);
 async function openChannel(channel:Channel) {
    
     //chatMessagesInfiniteScroll.value.stop();
+    messages.value = [];
     totalMessagesAmount = 0;
     currentOffset = 20;
     currentChannel.value = channel;
