@@ -16,7 +16,7 @@ export default class Channel extends BaseModel {
   public ownerId: number
 
   @hasMany(() => Message, {
-    onQuery: (query) => query.orderBy('date', "desc").limit(1),
+    onQuery: (query) => query.orderBy('id', "desc").limit(1),
   })
   public lastMessage: HasMany<typeof Message>
 
