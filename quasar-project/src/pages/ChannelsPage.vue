@@ -93,10 +93,19 @@
                             <q-item-label caption>{{ member.email }}</q-item-label>
                         </q-item-section>
 
-                        <q-item-section side v-if="showRemoveButton(member)">
-                            <q-btn flat round dense icon="remove_circle" color="negative"
-                                @click="kickMember(member.id)" />
+                        <q-item-section side>
+                            <template v-if="isOwner(member)">
+                                <q-badge color="primary" label="Owner" />
+                            </template>
+                            <template v-else-if="isCurrentUser(member)">
+                                <q-badge color="secondary" label="You" />
+                            </template>
+                            <template v-else-if="showRemoveButton(member)">
+                                <q-btn flat round dense icon="remove_circle" color="negative"
+                                    @click="kickMember(member.id)" />
+                            </template>
                         </q-item-section>
+
                     </q-item>
                 </q-card-section>
 
@@ -265,16 +274,28 @@ async function kickMember(userId: number) {
 
 function showRemoveButton(member: User): boolean {
     const channel = currentChannel.value
-    const myId = Number(localStorage.getItem('userid'))
-
     if (!channel) return false
 
+    const myId = Number(localStorage.getItem('userid'))
+
     if (channel.isPrivate) {
-        return channel.ownerId === myId && member.id !== channel.ownerId
+        return channel.ownerId === myId && member.id !== myId
     }
 
-    return member.id !== channel.ownerId
+    return member.id !== channel.ownerId && member.id !== myId
 }
+
+function isOwner(member: User): boolean {
+  const channel = currentChannel.value
+  if (!channel) return false
+  return member.id === channel.ownerId
+}
+
+function isCurrentUser(member: User): boolean {
+  const myId = Number(localStorage.getItem('userid') || localStorage.getItem('userId') || 0)
+  return member.id === myId
+}
+
 
 async function inviteUser() {
     if (!currentChannel.value || !inviteNickname.value.trim()) return
