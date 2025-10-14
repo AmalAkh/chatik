@@ -6,36 +6,77 @@ export default class ChannelsController {
     public async index({ auth }: HttpContextContract) {
         const user = auth.user!
         const channels = await Channel.query()
-          .whereHas('members', (q) => q.where('user_id', user.id))
-          .preload('lastMessage', (q) =>
-            q.preload('sender', (s) => s.select(['nickname']))
-          )
-          .select(['id', 'name', 'is_private', 'owner_id'])
-      
+            .whereHas('members', (q) => q.where('user_id', user.id))
+            .preload('lastMessage', (q) =>
+                q.preload('sender', (s) => s.select(['nickname']))
+            )
+            .select(['id', 'name', 'is_private', 'owner_id'])
+
         return channels.map((channel) => ({
-          ...channel.serialize(),
-          lastMessage: channel.lastMessage || null,
+            ...channel.serialize(),
+            lastMessage: channel.lastMessage || null,
         }))
-      }
-      
-
-    public async create({ request, auth }: HttpContextContract) {
-        const { name, isPrivate } = request.only(['name', 'isPrivate'])
-        const user = auth.user!
-
-        const channel = await Channel.create({
-            name,
-            is_private: isPrivate,
-            owner_id: user.id,
-        })
-
-        await ChannelMember.create({
-            channelId: channel.id,
-            userId: user.id,
-        })
-
-        return channel
     }
+
+
+    public async create({ request, auth, response }: HttpContextContract) {
+        try {
+            const { name, isPrivate } = request.only(['name', 'isPrivate'])
+            const user = auth.user!
+
+            let channel = await Channel.query().where('name', name).first()
+
+            if (channel) {
+                if (channel.is_private) {
+                    return response.status(403).json({
+                        error: 'This channel is private. You cannot join it directly.',
+                    })
+                }
+
+                const existingMember = await ChannelMember.query()
+                    .where('channelId', channel.id)
+                    .where('userId', user.id)
+                    .first()
+
+                if (existingMember) {
+                    return response.json({
+                        message: 'You are already a member of this channel',
+                        channel,
+                    })
+                }
+
+                await ChannelMember.create({
+                    channelId: channel.id,
+                    userId: user.id,
+                })
+
+                return response.json({
+                    message: 'Joined existing channel',
+                    channel,
+                })
+            }
+
+            channel = await Channel.create({
+                name,
+                is_private: isPrivate,
+                owner_id: user.id,
+            })
+
+            await ChannelMember.create({
+                channelId: channel.id,
+                userId: user.id,
+            })
+
+            return response.json({
+                message: 'Channel created',
+                channel,
+            })
+        } catch (error) {
+            console.error('Error creating/joining channel:', error)
+            return response.status(500).json({ error: error.message })
+        }
+    }
+
 
     public async invite({ request, auth, params }: HttpContextContract) {
         const { userId } = request.only(['userId'])
@@ -74,7 +115,7 @@ export default class ChannelsController {
 
         if (channel.is_private && channel.owner_id !== user.id) {
             return { error: 'Only the owner can remove members from a private channel' }
-        }        
+        }
 
         const memberToRemove = await ChannelMember.query()
             .where('channelId', channel.id)
