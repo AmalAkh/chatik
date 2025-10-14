@@ -12,6 +12,7 @@ Route.group(() => {
   Route.post('/:channelId/kick', 'ChannelsController.kick')
   Route.get('/:channelId/', 'ChannelsController.show')
   Route.delete('/:channelId/', 'ChannelsController.destroy')
+  Route.post('/:channelId/leave', 'ChannelsController.leave')
   
 }).prefix('/channels').middleware('auth')
 

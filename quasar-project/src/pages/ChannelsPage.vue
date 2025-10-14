@@ -71,9 +71,11 @@
         <!-- dialog for viewing channel members -->
         <q-dialog v-model="showMembersDialog">
             <q-card style="min-width: 350px; max-height: 80vh;">
-                <q-card-section>
+                <q-card-section class="row items-center justify-between">
                     <div class="text-h6">Channel members</div>
+                    <q-btn flat color="negative" icon="logout" label="Leave" size="sm" @click="leaveChannel" />
                 </q-card-section>
+
                 <q-separator />
                 <q-card-section class="scroll" style="max-height: 60vh; overflow-y: auto;">
                     <div v-if="channelMembers.length === 0" class="text-grey text-center q-mt-md">
@@ -220,6 +222,27 @@ async function loadChannelMembers() {
             headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         })
         channelMembers.value = res.data.members
+    } catch (err) {
+        showError(err)
+    }
+}
+
+async function leaveChannel() {
+    if (!currentChannel.value) return
+
+    try {
+        const res = await api.post(
+            `/channels/${currentChannel.value.id}/leave`,
+            {},
+            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+        )
+
+        showSuccess(res.data.message || 'You left the channel')
+
+        channels.value = channels.value.filter(c => c.id !== currentChannel.value?.id)
+        currentChannel.value = undefined
+        showMembersDialog.value = false
+
     } catch (err) {
         showError(err)
     }
