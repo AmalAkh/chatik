@@ -95,21 +95,28 @@ export default class ChannelsController {
     public async show({ params }: HttpContextContract) {
         const channel = await Channel.query()
             .where('id', params.channelId)
-            .preload('members')
+            .preload('members', (membersQuery) => {
+            membersQuery.preload('user', (userQuery) => {
+                userQuery.select(['id', 'nickname', 'email'])
+            })
+            })
             .firstOrFail()
-    
+        
         const channelInfo = {
             id: channel.id,
             name: channel.name,
             isPrivate: channel.isPrivate,
             ownerId: channel.ownerId,
             members: channel.members.map((member) => ({
-            userId: member.userId
-            }))
+                id: member.user.id,
+                nickname: member.user.nickname,
+                email: member.user.email,
+            })),
         }
-    
+        
         return channelInfo
     }
+      
 
     public async destroy({ params, auth }: HttpContextContract) {
         const user = auth.user!

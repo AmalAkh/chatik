@@ -1,7 +1,11 @@
 // User interface
 export interface User {
+  id: number
   nickname: string
+  email?: string
+  avatar?: string
 }
+
 
 // Interface for a single message in a channel
 export interface ChannelMessage {

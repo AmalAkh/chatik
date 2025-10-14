@@ -20,3 +20,5 @@ Route.group(() => {
   Route.post('/:channelId/', 'MessagesController.create')
   
 }).prefix('/messages').middleware('auth')
+
+Route.get('/users/by-nickname/:nickname', 'UsersController.byNickname').middleware('auth')
