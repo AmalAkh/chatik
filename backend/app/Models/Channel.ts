@@ -1,4 +1,4 @@
-import { BaseModel, column, hasMany, HasMany } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, hasMany, HasMany, hasOne, HasOne } from '@ioc:Adonis/Lucid/Orm'
 import ChannelMember from 'App/Models/ChannelMember'
 import Message from './ChannelMessage'
 
@@ -10,15 +10,15 @@ export default class Channel extends BaseModel {
   public name: string
 
   @column()
-  public isPrivate: boolean
+  public is_private: boolean
 
   @column()
-  public ownerId: number
+  public owner_id: number
 
-  @hasMany(() => Message, {
-    onQuery: (query) => query.orderBy('id', "desc").limit(1),
+  @hasOne(() => Message, {
+    onQuery: (query) => query.orderBy('id', 'desc').limit(1),
   })
-  public lastMessage: HasMany<typeof Message>
+  public lastMessage: HasOne<typeof Message>
 
   @hasMany(() => ChannelMember)
   public members: HasMany<typeof ChannelMember>

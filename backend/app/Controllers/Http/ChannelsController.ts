@@ -6,20 +6,18 @@ export default class ChannelsController {
     public async index({ auth }: HttpContextContract) {
         const user = auth.user!
         const channels = await Channel.query()
-            .whereHas('members', (q) => q.where('user_id', user.id)).preload('lastMessage', (messageQuery) => {
-                messageQuery
-                .preload('sender', (senderQuery) => {
-                    senderQuery.select(['nickname'])
-                })
-            
-            });
-            
-           const result = channels.map(channel => ({
-            ...channel.serialize(),
-            lastMessage: channel.lastMessage[0] || null,
-            }))
-        return result
-    }
+          .whereHas('members', (q) => q.where('user_id', user.id))
+          .preload('lastMessage', (q) =>
+            q.preload('sender', (s) => s.select(['nickname']))
+          )
+          .select(['id', 'name', 'is_private', 'owner_id'])
+      
+        return channels.map((channel) => ({
+          ...channel.serialize(),
+          lastMessage: channel.lastMessage || null,
+        }))
+      }
+      
 
     public async create({ request, auth }: HttpContextContract) {
         const { name, isPrivate } = request.only(['name', 'isPrivate'])
@@ -27,8 +25,8 @@ export default class ChannelsController {
 
         const channel = await Channel.create({
             name,
-            isPrivate,
-            ownerId: user.id,
+            is_private: isPrivate,
+            owner_id: user.id,
         })
 
         await ChannelMember.create({
@@ -46,7 +44,7 @@ export default class ChannelsController {
 
         const channel = await Channel.findOrFail(params.channelId)
 
-        if (channel.ownerId !== user.id) {
+        if (channel.owner_id !== user.id) {
             return { error: 'You are not the owner of the channel' }
         }
 
@@ -54,7 +52,7 @@ export default class ChannelsController {
             .where('channelId', channel.id)
             .where('userId', userId)
             .first()
-        
+
         if (existingMember) {
             return { message: 'User is already a member of the channel' }
         }
@@ -74,15 +72,15 @@ export default class ChannelsController {
 
         const channel = await Channel.findOrFail(params.channelId)
 
-        if (channel.ownerId !== user.id) {
-            return { error: 'You are not the owner of the channel' }
-        }
+        if (channel.is_private && channel.owner_id !== user.id) {
+            return { error: 'Only the owner can remove members from a private channel' }
+        }        
 
         const memberToRemove = await ChannelMember.query()
             .where('channelId', channel.id)
             .where('userId', userId)
             .first()
-        
+
         if (!memberToRemove) {
             return { message: 'User is not a member of the channel' }
         }
@@ -96,34 +94,34 @@ export default class ChannelsController {
         const channel = await Channel.query()
             .where('id', params.channelId)
             .preload('members', (membersQuery) => {
-            membersQuery.preload('user', (userQuery) => {
-                userQuery.select(['id', 'nickname', 'email'])
-            })
+                membersQuery.preload('user', (userQuery) => {
+                    userQuery.select(['id', 'nickname', 'email'])
+                })
             })
             .firstOrFail()
-        
+
         const channelInfo = {
             id: channel.id,
             name: channel.name,
-            isPrivate: channel.isPrivate,
-            ownerId: channel.ownerId,
+            isPrivate: channel.is_private,
+            ownerId: channel.owner_id,
             members: channel.members.map((member) => ({
                 id: member.user.id,
                 nickname: member.user.nickname,
                 email: member.user.email,
             })),
         }
-        
+
         return channelInfo
     }
-      
+
 
     public async destroy({ params, auth }: HttpContextContract) {
         const user = auth.user!
-        
+
         const channel = await Channel.findOrFail(params.channelId)
 
-        if (channel.ownerId !== user.id) {
+        if (channel.owner_id !== user.id) {
             return { error: 'You are not the owner of this channel' }
         }
 

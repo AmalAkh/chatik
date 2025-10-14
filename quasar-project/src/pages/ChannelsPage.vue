@@ -91,11 +91,20 @@
                                 <img :src="member.avatar || 'https://cdn.quasar.dev/img/avatar.png'" />
                             </q-avatar>
                         </q-item-section>
+
                         <q-item-section>
                             <q-item-label>{{ member.nickname }}</q-item-label>
                             <q-item-label caption>{{ member.email }}</q-item-label>
                         </q-item-section>
+
+                        <q-item-section side v-if="showRemoveButton(member)">
+                            <q-btn flat round dense icon="remove_circle" color="negative"
+                                @click="kickMember(member.id)" />
+                        </q-item-section>
+
+
                     </q-item>
+
                 </q-card-section>
 
                 <q-card-actions align="right">
@@ -193,13 +202,45 @@ async function loadChannelMembers() {
     if (!currentChannel.value) return
     try {
         const res = await api.get(`/channels/${currentChannel.value.id}`, {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            headers: { Authorization: `Bearer ${globalThis.localStorage.getItem('token')}` },
         })
         channelMembers.value = res.data.members
     } catch (err) {
         console.error("Error loading members:", err)
     }
 }
+
+
+async function kickMember(userId: number) {
+    if (!currentChannel.value) return
+    try {
+        const res = await api.post(
+            `/channels/${currentChannel.value.id}/kick`,
+            { userId },
+            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+        )
+        console.log(res.data.message)
+        channelMembers.value = channelMembers.value.filter(m => m.id !== userId)
+    } catch (err: any) {
+        console.error(err)
+        alert(err.response?.data?.error || 'Failed to remove user')
+    }
+}
+
+function showRemoveButton(member: User): boolean {
+  const channel = currentChannel.value
+  const myId = Number(localStorage.getItem('userid'))
+
+  if (!channel) return false
+
+  if (channel.isPrivate) {
+    return channel.ownerId === myId && member.id !== channel.ownerId
+  }
+
+  return member.id !== channel.ownerId
+}
+
+
 
 async function inviteUser() {
     if (!currentChannel.value || !inviteNickname.value.trim()) return
@@ -228,35 +269,48 @@ async function inviteUser() {
 }
 
 
-// open channel (mobile: switches view)
-
+// open channel (mobile: switches view
 
 // load channels from backend
 async function loadChannels() {
-    try {
-        const res = await api.get('/channels')
-        channels.value = res.data.map((channel: Channel) => {
-            if (channel.lastMessage)
-                convertMessageDate(channel.lastMessage);
-            return channel;
-        })
-    } catch (err) {
-        console.error(err)
+  try {
+    const res = await api.get('/channels', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+    channels.value = res.data.map((channel: any) => {
+    if (channel.lastMessage && channel.lastMessage.date) {
+        convertMessageDate(channel.lastMessage)
     }
+    return {
+        ...channel,
+        isPrivate: channel.is_private,
+        ownerId: channel.owner_id,
+    }
+    })
+
+  } catch (err) {
+    console.error('Failed to load channels:', err)
+  }
 }
+
+
 function convertMessageDate(msg: ChannelMessage) {
     msg.date = new Date(msg.date);
 }
 const sortedChannels = computed(() => {
-    return [...channels.value].sort((channel1: Channel, channel2: Channel) => {
+  return [...channels.value].sort((a: Channel, b: Channel) => {
+    const t1 =
+      a.lastMessage && a.lastMessage.date
+        ? new Date(a.lastMessage.date).getTime()
+        : 0;
+    const t2 =
+      b.lastMessage && b.lastMessage.date
+        ? new Date(b.lastMessage.date).getTime()
+        : 0;
+    return t2 - t1;
+  });
+});
 
-
-        const t1 = channel1.lastMessage ? channel1.lastMessage.date.getTime() : 0;
-        const t2 = channel2.lastMessage ? channel2.lastMessage.date.getTime() : 0;
-        return -1 * (t1 - t2);
-
-    })
-})
 // create new channel
 async function createChannel() {
     if (!channelName.value) return
