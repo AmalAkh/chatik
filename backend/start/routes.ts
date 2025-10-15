@@ -12,6 +12,7 @@ Route.group(() => {
   Route.post('/:channelId/kick', 'ChannelsController.kick')
   Route.get('/:channelId/', 'ChannelsController.show')
   Route.delete('/:channelId/', 'ChannelsController.destroy')
+  Route.post('/:channelId/leave', 'ChannelsController.leave')
   
 }).prefix('/channels').middleware('auth')
 
@@ -20,3 +21,5 @@ Route.group(() => {
   Route.post('/:channelId/', 'MessagesController.create')
   
 }).prefix('/messages').middleware('auth')
+
+Route.get('/users/by-nickname/:nickname', 'UsersController.byNickname').middleware('auth')
