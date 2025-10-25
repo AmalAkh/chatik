@@ -71,13 +71,15 @@
             <q-card style="min-width: 350px; max-height: 80vh;">
                 <q-card-section class="row items-center justify-between">
                     <div class="text-h6">Channel members</div>
+                    <!-- кнопка добавления участника -->
+                    <q-btn flat round color="primary" icon="person_add" @click="showAddUserDialog = true" />
                 </q-card-section>
 
                 <q-separator />
 
                 <!-- list of members -->
                 <q-card-section class="scroll" style="max-height: 60vh; overflow-y: auto;">
-                    <q-item v-for="member in channelMembers" :key="member.id">
+                    <q-item v-for="member in channelMembers" :key="member.id" class="q-my-xs">
                         <q-item-section avatar>
                             <q-avatar><img :src="member.avatar" /></q-avatar>
                         </q-item-section>
@@ -85,12 +87,41 @@
                             <q-item-label>{{ member.nickname }}</q-item-label>
                             <q-item-label caption>{{ member.email }}</q-item-label>
                         </q-item-section>
+
+                        <q-item-section side>
+                            <!-- нельзя удалить себя, только выйти -->
+                            <q-btn v-if="member.id !== fakeUser.id" dense flat round color="negative"
+                                icon="person_remove" @click="removeMember(member)" />
+                            <q-btn v-else dense flat round color="warning" icon="logout" @click="leaveChannel" />
+                        </q-item-section>
                     </q-item>
                 </q-card-section>
 
-                
+                <q-card-actions align="right">
+                    <q-btn flat label="Close" color="primary" v-close-popup />
+                </q-card-actions>
             </q-card>
         </q-dialog>
+
+        <!-- Диалог добавления нового пользователя -->
+        <q-dialog v-model="showAddUserDialog">
+            <q-card style="min-width: 300px;">
+                <q-card-section>
+                    <div class="text-h6">Add new member</div>
+                </q-card-section>
+
+                <q-card-section>
+                    <q-input v-model="newMemberNickname" label="Nickname" autofocus />
+                    <q-input v-model="newMemberEmail" label="Email" />
+                </q-card-section>
+
+                <q-card-actions align="right">
+                    <q-btn flat label="Cancel" color="primary" v-close-popup />
+                    <q-btn flat color="positive" label="Add" @click="addMember" />
+                </q-card-actions>
+            </q-card>
+        </q-dialog>
+
 
         <!-- dialog for creating new channel -->
         <q-dialog v-model="showCreateDialog">
@@ -129,6 +160,9 @@ const splitterDisabled = ref(false)
 /* dialog controls */
 const showCreateDialog = ref(false)
 const showMembersDialog = ref(false)
+const showAddUserDialog = ref(false)
+const newMemberNickname = ref('')
+const newMemberEmail = ref('')
 
 /* form fields */
 const channelName = ref('')
@@ -144,8 +178,8 @@ const channels = ref([
     {
         id: 1,
         name: 'General',
-        messages:[
-            { id: 2, text: 'Welcome to General!',  sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' }, date: new Date(), local: true }
+        messages: [
+            { id: 2, text: 'Welcome to General!', sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' }, date: new Date(), local: true }
         ],
         lastMessage: {
             id: 1,
@@ -160,7 +194,7 @@ const channels = ref([
     {
         id: 2,
         name: 'Random',
-        messages:[
+        messages: [
             { id: 2, text: 'Random thoughts here', sender: { id: 3, nickname: 'Bob', avatar: 'https://cdn.quasar.dev/img/avatar3.jpg' }, date: new Date(), local: true }
         ],
         lastMessage: {
@@ -176,7 +210,7 @@ const channels = ref([
     {
         id: 3,
         name: 'Developers',
-        messages:[
+        messages: [
             { id: 1, text: 'Hey, welcome!', sender: fakeUser, date: new Date(), local: true },
             { id: 2, text: 'Hello! How are you?', sender: { nickname: 'Alice' }, date: new Date(), local: false },
             { id: 3, text: 'All good!', sender: fakeUser, date: new Date(), local: true },
@@ -235,7 +269,7 @@ function createChannel() {
     channels.value.push({
         id: Date.now(),
         name: channelName.value,
-        messages:[],
+        messages: [],
         lastMessage: {
             id: Date.now(),
             text: 'Empty channel',
@@ -266,6 +300,42 @@ function sendMessage() {
     currentChannel.value.lastMessage = newMessageObj;
     newMessage.value = ''
     $q.notify({ type: 'info', message: 'Message sent (mock)' })
+}
+
+function addMember() {
+  if (!newMemberNickname.value.trim() || !newMemberEmail.value.trim()) {
+    $q.notify({ type: 'warning', message: 'Please fill both nickname and email' })
+    return
+  }
+  if (channelMembers.value.find(m => m.nickname === newMemberNickname.value)) {
+    $q.notify({ type: 'negative', message: 'User already in the channel' })
+    return
+  }
+  const newMember = {
+    id: Date.now(),
+    nickname: newMemberNickname.value,
+    email: newMemberEmail.value,
+    avatar: 'https://cdn.quasar.dev/img/avatar.png'
+  }
+  channelMembers.value.push(newMember)
+  $q.notify({ type: 'positive', message: `${newMemberNickname.value} added to channel!` })
+  newMemberNickname.value = ''
+  newMemberEmail.value = ''
+  showAddUserDialog.value = false
+}
+
+function removeMember(member: any) {
+  channelMembers.value = channelMembers.value.filter(m => m.id !== member.id)
+  $q.notify({ type: 'warning', message: `${member.nickname} removed from channel.` })
+}
+
+function leaveChannel() {
+  if (!currentChannel.value) return
+  channels.value = channels.value.filter(c => c.id !== currentChannel.value.id)
+  currentChannel.value = null
+  channelMembers.value = channelMembers.value.filter(m => m.id !== fakeUser.id)
+  showMembersDialog.value = false
+  $q.notify({ type: 'info', message: 'You left the channel.' })
 }
 
 window.addEventListener("resize", () => {
