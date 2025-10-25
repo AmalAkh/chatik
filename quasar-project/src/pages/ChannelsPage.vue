@@ -49,7 +49,7 @@
                     <!-- messages area -->
                     <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
                         <div v-if="currentChannel">
-                            <q-chat-message v-for="message in messages" :key="message.id"
+                            <q-chat-message v-for="message in currentChannel.messages" :key="message.id"
                                 :name="message.sender.nickname" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
                                 :text="[message.text]" :sent="message.local"
                                 :stamp="message.date.toLocaleTimeString()" />
@@ -88,9 +88,7 @@
                     </q-item>
                 </q-card-section>
 
-                <q-card-actions align="right">
-                    <q-btn flat label="Close" color="primary" v-close-popup />
-                </q-card-actions>
+                
             </q-card>
         </q-dialog>
 
@@ -146,6 +144,9 @@ const channels = ref([
     {
         id: 1,
         name: 'General',
+        messages:[
+            { id: 2, text: 'Welcome to General!',  sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' }, date: new Date(), local: true }
+        ],
         lastMessage: {
             id: 1,
             text: 'Welcome to General!',
@@ -159,6 +160,9 @@ const channels = ref([
     {
         id: 2,
         name: 'Random',
+        messages:[
+            { id: 2, text: 'Random thoughts here', sender: { id: 3, nickname: 'Bob', avatar: 'https://cdn.quasar.dev/img/avatar3.jpg' }, date: new Date(), local: true }
+        ],
         lastMessage: {
             id: 2,
             text: 'Random thoughts here',
@@ -172,6 +176,11 @@ const channels = ref([
     {
         id: 3,
         name: 'Developers',
+        messages:[
+            { id: 1, text: 'Hey, welcome!', sender: fakeUser, date: new Date(), local: true },
+            { id: 2, text: 'Hello! How are you?', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+            { id: 3, text: 'All good!', sender: fakeUser, date: new Date(), local: true },
+        ],
         lastMessage: {
             id: 3,
             text: 'Push to main?',
@@ -195,11 +204,7 @@ const channelMembers = ref([
 ])
 
 /* fake messages for demonstration */
-const messages = ref<any[]>([
-    { id: 1, text: 'Hey, welcome!', sender: fakeUser, date: new Date(), local: true },
-    { id: 2, text: 'Hello! How are you?', sender: { nickname: 'Alice' }, date: new Date(), local: false },
-    { id: 3, text: 'All good!', sender: fakeUser, date: new Date(), local: true },
-])
+
 
 /* filtering channels by search query */
 const filteredChannels = computed(() => {
@@ -210,6 +215,7 @@ const filteredChannels = computed(() => {
 /* switch current channel */
 function openChannel(channel: any) {
     currentChannel.value = channel
+
     if (window.innerWidth < 1024) {
         splitterModel.value = 0
         splitterDisabled.value = true
@@ -229,6 +235,7 @@ function createChannel() {
     channels.value.push({
         id: Date.now(),
         name: channelName.value,
+        messages:[],
         lastMessage: {
             id: Date.now(),
             text: 'Empty channel',
@@ -248,16 +255,29 @@ function createChannel() {
 /* send a new message (mock only) */
 function sendMessage() {
     if (!newMessage.value.trim() || !currentChannel.value) return
-    messages.value.push({
+    let newMessageObj = {
         id: Date.now(),
         text: newMessage.value,
         sender: fakeUser,
         date: new Date(),
         local: true,
-    })
+    }
+    currentChannel.value.messages.push(newMessageObj);
+    currentChannel.value.lastMessage = newMessageObj;
     newMessage.value = ''
     $q.notify({ type: 'info', message: 'Message sent (mock)' })
 }
+
+window.addEventListener("resize", () => {
+    if (window.innerWidth < 1024) {
+        splitterDisabled.value = true
+        splitterModel.value = 100
+    } else {
+        splitterDisabled.value = false
+        splitterModel.value = 25
+    }
+})
+
 </script>
 
 <style lang="scss">
