@@ -79,22 +79,21 @@
 
                 <!-- list of members -->
                 <q-card-section class="scroll" style="max-height: 60vh; overflow-y: auto;">
-                    <q-item v-for="member in channelMembers" :key="member.id" class="q-my-xs">
+                    <q-item v-for="memberId in currentChannel?.members" :key="memberId" class="q-my-xs">
                         <q-item-section avatar>
-                            <q-avatar><img :src="member.avatar" /></q-avatar>
+                            <q-avatar><img :src="getUser(memberId).avatar" /></q-avatar>
                         </q-item-section>
                         <q-item-section>
-                            <q-item-label>{{ member.nickname }}</q-item-label>
-                            <q-item-label caption>{{ member.email }}</q-item-label>
+                            <q-item-label>{{ getUser(memberId).nickname }}</q-item-label>
+                            <q-item-label caption>{{ getUser(memberId).email }}</q-item-label>
                         </q-item-section>
-
                         <q-item-section side>
-                            <!-- нельзя удалить себя, только выйти -->
-                            <q-btn v-if="member.id !== fakeUser.id" dense flat round color="negative"
-                                icon="person_remove" @click="removeMember(member)" />
+                            <q-btn v-if="memberId !== fakeUser.id" dense flat round color="negative"
+                                icon="person_remove" @click="removeMember(memberId)" />
                             <q-btn v-else dense flat round color="warning" icon="logout" @click="leaveChannel" />
                         </q-item-section>
                     </q-item>
+
                 </q-card-section>
 
                 <q-card-actions align="right">
@@ -178,6 +177,7 @@ const channels = ref([
     {
         id: 1,
         name: 'General',
+        members: [1, 2, 3],
         messages: [
             { id: 2, text: 'Welcome to General!', sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' }, date: new Date(), local: true }
         ],
@@ -188,12 +188,13 @@ const channels = ref([
             userId: 2,
             channelId: 1,
             date: new Date(),
-            sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' },
+            sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' }
         }
     },
     {
         id: 2,
         name: 'Random',
+        members: [2, 3],
         messages: [
             { id: 2, text: 'Random thoughts here', sender: { id: 3, nickname: 'Bob', avatar: 'https://cdn.quasar.dev/img/avatar3.jpg' }, date: new Date(), local: true }
         ],
@@ -204,16 +205,17 @@ const channels = ref([
             userId: 3,
             channelId: 2,
             date: new Date(),
-            sender: { id: 3, nickname: 'Bob', avatar: 'https://cdn.quasar.dev/img/avatar3.jpg' },
+            sender: { id: 3, nickname: 'Bob', avatar: 'https://cdn.quasar.dev/img/avatar3.jpg' }
         }
     },
     {
         id: 3,
         name: 'Developers',
+        members: [1, 2],
         messages: [
             { id: 1, text: 'Hey, welcome!', sender: fakeUser, date: new Date(), local: true },
             { id: 2, text: 'Hello! How are you?', sender: { nickname: 'Alice' }, date: new Date(), local: false },
-            { id: 3, text: 'All good!', sender: fakeUser, date: new Date(), local: true },
+            { id: 3, text: 'All good!', sender: fakeUser, date: new Date(), local: true }
         ],
         lastMessage: {
             id: 3,
@@ -222,29 +224,23 @@ const channels = ref([
             userId: 1,
             channelId: 3,
             date: new Date(),
-            sender: fakeUser,
+            sender: fakeUser
         }
-    },
+    }
 ])
+
 
 /* currently opened channel */
 const currentChannel = ref<any>(null)
 
-/* fake members data */
-const channelMembers = ref([
-    fakeUser,
-    { id: 2, nickname: 'Alice', email: 'alice@mail.com', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' },
-    { id: 3, nickname: 'Bob', email: 'bob@mail.com', avatar: 'https://cdn.quasar.dev/img/avatar3.jpg' },
-])
-
-/* fake messages for demonstration */
-
 
 /* filtering channels by search query */
 const filteredChannels = computed(() => {
-    if (!searchQuery.value) return channels.value
-    return channels.value.filter(c => c.name.toLowerCase().includes(searchQuery.value.toLowerCase()))
+    return channels.value
+        .filter(c => c.members.includes(fakeUser.id))
+        .filter(c => c.name.toLowerCase().includes(searchQuery.value.toLowerCase()))
 })
+
 
 /* switch current channel */
 function openChannel(channel: any) {
@@ -258,33 +254,40 @@ function openChannel(channel: any) {
 
 /* create new mock channel */
 function createChannel() {
-    if (!channelName.value) return
-
-    const fakeUser = {
-        id: 1,
-        nickname: 'Kal',
-        avatar: 'https://cdn.quasar.dev/img/avatar4.jpg',
-    }
-
-    channels.value.push({
-        id: Date.now(),
+    if (!channelName.value.trim()) return
+    const id = Date.now()
+    const newChannel = {
+        id,
         name: channelName.value,
+        members: [fakeUser.id],
         messages: [],
         lastMessage: {
-            id: Date.now(),
+            id,
             text: 'Empty channel',
             local: true,
             userId: fakeUser.id,
-            channelId: Date.now(),
+            channelId: id,
             date: new Date(),
-            sender: fakeUser,
-        },
-    })
-
+            sender: fakeUser
+        }
+    }
+    channels.value.push(newChannel)
     $q.notify({ type: 'positive', message: `Channel "${channelName.value}" created!` })
     channelName.value = ''
     showCreateDialog.value = false
 }
+
+
+const allUsers = ref([
+    fakeUser,
+    { id: 2, nickname: 'Alice', email: 'alice@mail.com', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' },
+    { id: 3, nickname: 'Bob', email: 'bob@mail.com', avatar: 'https://cdn.quasar.dev/img/avatar3.jpg' },
+])
+
+function getUser(id: number) {
+    return allUsers.value.find(u => u.id === id) || { nickname: 'Unknown', email: '', avatar: '' }
+}
+
 
 /* send a new message (mock only) */
 function sendMessage() {
@@ -303,40 +306,52 @@ function sendMessage() {
 }
 
 function addMember() {
-  if (!newMemberNickname.value.trim() || !newMemberEmail.value.trim()) {
-    $q.notify({ type: 'warning', message: 'Please fill both nickname and email' })
-    return
-  }
-  if (channelMembers.value.find(m => m.nickname === newMemberNickname.value)) {
-    $q.notify({ type: 'negative', message: 'User already in the channel' })
-    return
-  }
-  const newMember = {
-    id: Date.now(),
-    nickname: newMemberNickname.value,
-    email: newMemberEmail.value,
-    avatar: 'https://cdn.quasar.dev/img/avatar.png'
-  }
-  channelMembers.value.push(newMember)
-  $q.notify({ type: 'positive', message: `${newMemberNickname.value} added to channel!` })
-  newMemberNickname.value = ''
-  newMemberEmail.value = ''
-  showAddUserDialog.value = false
+    if (!newMemberNickname.value.trim() || !newMemberEmail.value.trim() || !currentChannel.value) {
+        $q.notify({ type: 'warning', message: 'Please fill both nickname and email' })
+        return
+    }
+    const existing = allUsers.value.find(u => u.nickname === newMemberNickname.value)
+    let user
+    if (existing) {
+        user = existing
+    } else {
+        user = {
+            id: Date.now(),
+            nickname: newMemberNickname.value,
+            email: newMemberEmail.value,
+            avatar: 'https://cdn.quasar.dev/img/avatar.png'
+        }
+        allUsers.value.push(user)
+    }
+    if (currentChannel.value.members.includes(user.id)) {
+        $q.notify({ type: 'negative', message: 'User already in channel' })
+        return
+    }
+    currentChannel.value.members.push(user.id)
+    $q.notify({ type: 'positive', message: `${user.nickname} added to channel!` })
+    newMemberNickname.value = ''
+    newMemberEmail.value = ''
+    showAddUserDialog.value = false
 }
 
-function removeMember(member: any) {
-  channelMembers.value = channelMembers.value.filter(m => m.id !== member.id)
-  $q.notify({ type: 'warning', message: `${member.nickname} removed from channel.` })
+function removeMember(id: number) {
+    if (!currentChannel.value) return
+    currentChannel.value.members = currentChannel.value.members.filter((m: number) => m !== id)
+    const user = getUser(id)
+    $q.notify({ type: 'warning', message: `${user.nickname} removed from channel.` })
 }
+
 
 function leaveChannel() {
-  if (!currentChannel.value) return
-  channels.value = channels.value.filter(c => c.id !== currentChannel.value.id)
-  currentChannel.value = null
-  channelMembers.value = channelMembers.value.filter(m => m.id !== fakeUser.id)
-  showMembersDialog.value = false
-  $q.notify({ type: 'info', message: 'You left the channel.' })
+    if (!currentChannel.value) return
+    currentChannel.value.members = currentChannel.value.members.filter((id: number) => id !== fakeUser.id)
+    channels.value = channels.value.filter(c => c.members.includes(fakeUser.id))
+    currentChannel.value = null
+    showMembersDialog.value = false
+    $q.notify({ type: 'info', message: 'You left the channel.' })
 }
+
+
 
 window.addEventListener("resize", () => {
     if (window.innerWidth < 1024) {
