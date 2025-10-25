@@ -7,7 +7,36 @@
       </q-avatar>
 
       <q-toolbar-title>Chatik</q-toolbar-title>
+      <p>Status</p>
+      <div class="q-pa-md">
+         <q-btn-toggle
+            v-model="currentStatus"
+           
+            no-caps
+            rounded
+            unelevated
+            toggle-color="blue"
+            color="blue-grey-1"
+            text-color="primary"
+            :options="[
+              {label: 'Online', value: 'online'},
+              {label: 'DND', value: 'dnd'},
+              {label: 'Offline', value: 'offline'}
+            ]"
+          />
+      </div>
+ 
 
+      <q-btn 
+      class="settings"
+        flat 
+        round 
+        dense 
+        icon="settings" 
+        color="white"
+        @click="showSettingsDialog = true"
+        
+      />
       <q-btn 
         flat 
         round 
@@ -21,15 +50,40 @@
     <q-page-container style="flex: auto;">
       <router-view />
     </q-page-container>
+     <!-- dialog for creating new channel -->
+        <q-dialog v-model="showSettingsDialog">
+            <q-card style="min-width: 350px">
+                <q-card-section>
+                    <div class="text-h6">Create a new channel</div>
+                </q-card-section>
+
+                <!-- channel creation form -->
+                <q-card-section>
+                    <q-toggle
+                      v-model="onlyPersonalMessagesDialog"
+                      label="Deliver only messages that addressed to you"
+                    />
+                </q-card-section>
+
+                
+            </q-card>
+        </q-dialog>
   </q-layout>
+  
 </template>
 
 <script setup lang="ts">
+import {ref } from "vue";
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 
 const router = useRouter()
 const $q = useQuasar()
+
+const currentStatus = ref('online');
+const showSettingsDialog = ref(false);
+
+const onlyPersonalMessagesDialog = ref(false);
 
 function logout() {
   localStorage.removeItem('user')
@@ -37,3 +91,9 @@ function logout() {
   void router.push('/auth/login')
 }
 </script>
+<style lang="scss">
+  .q-btn.settings
+  {
+    margin:10px
+  }
+</style>
