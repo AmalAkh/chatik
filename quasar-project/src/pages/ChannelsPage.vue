@@ -52,7 +52,11 @@
                             <q-chat-message v-for="message in currentChannel.messages" :key="message.id"
                                 :name="message.sender.nickname" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
                                 :text="[message.text]" :sent="message.local"
-                                :stamp="message.date.toLocaleTimeString()" />
+                                :stamp="message.date.toLocaleTimeString()" >
+                                <template #default>
+                                    <div v-highlight-mention>{{ message.text }}</div>
+                                </template>
+                            </q-chat-message>
                         </div>
                     </q-scroll-area>
 
@@ -145,9 +149,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed} from 'vue'
 import { useQuasar } from 'quasar'
 import ChannelItem from 'src/components/ChannelItem.vue'
+import vHighlightMention from  "../utils/highlight-mention";
 
 /* Quasar instance for notifications */
 const $q = useQuasar()
@@ -375,7 +380,10 @@ window.addEventListener("resize", () => {
         background-color: #f6f6f6;
     }
 }
-
+.mention
+{
+    color:blue;
+}
 /* chat header area */
 .chat-top-area {
     flex: none;
