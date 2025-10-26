@@ -6,21 +6,28 @@
             <!-- left panel with channels list -->
             <template v-slot:before>
                 <div class="channels-area">
-
+                    
                     <!-- header with create button -->
                     <div class="row justify-center items-center q-mt-sm">
                         <q-btn flat round color="primary" icon="add_circle" @click="showCreateDialog = true" />
                         <span class="text-subtitle2">Channels</span>
                     </div>
-
-                    <!-- user status buttons -->
                     <div class="status-area row justify-center items-center q-mt-sm ">
-                        <q-btn-toggle v-model="currentStatus" no-caps rounded unelevated toggle-color="blue"
-                            color="blue-grey-1" text-color="primary" :options="[
-                                { label: 'Online', value: 'online' },
-                                { label: 'DND', value: 'dnd' },
-                                { label: 'Offline', value: 'offline' }
-                            ]" />
+                        <q-btn-toggle
+                            v-model="currentStatus"
+                        
+                            no-caps
+                            rounded
+                            unelevated
+                            toggle-color="blue"
+                            color="blue-grey-1"
+                            text-color="primary"
+                            :options="[
+                            {label: 'Online', value: 'online'},
+                            {label: 'DND', value: 'dnd'},
+                            {label: 'Offline', value: 'offline'}
+                            ]"
+                        />
                     </div>
 
                     <!-- search bar -->
@@ -58,32 +65,32 @@
                     </div>
 
                     <!-- messages area -->
-                    <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
-                        <q-infinite-scroll v-if="currentChannel" @load="onLoad" reverse>
-                            <!-- loading spinner -->
-                            <template v-slot:loading>
-                                <div class="row justify-center q-my-md">
-                                    <q-spinner-dots color="primary" size="40px" />
+                   
+                        
+                        <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
+                            <q-infinite-scroll v-if="currentChannel" @load="onLoad" reverse>
+                                <template v-slot:loading>
+                                    <div class="row justify-center q-my-md">
+                                        <q-spinner-dots color="primary" size="40px" />
+                                    </div>
+                                </template>
+                                <div v-if="currentChannel">
+                                    <q-chat-message v-for="message in currentChannel.messages" :key="`${currentChannel.id}-${message.id}`"
+                                        :name="message.sender.nickname" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
+                                        :text="[message.text]" :sent="message.local"
+                                        :stamp="message.date.toLocaleTimeString()" 
+                                        :bg-color="getMessageColor(message)">
+                                        <template #default>
+                                            <div v-highlight-mention>{{ message.text }}</div>
+                                        </template>
+                                    </q-chat-message>
                                 </div>
-                            </template>
-
-                            <!-- messages list -->
-                            <div v-if="currentChannel">
-                                <q-chat-message v-for="message in currentChannel.messages"
-                                    :key="`${currentChannel.id}-${message.id}`" :name="message.sender.nickname"
-                                    avatar="https://cdn.quasar.dev/img/avatar4.jpg" :text="[message.text]"
-                                    :sent="message.local" :stamp="message.date.toLocaleTimeString()"
-                                    :bg-color="getMessageColor(message)">
-                                    <template #default>
-                                        <div v-highlight-mention>{{ message.text }}</div>
-                                    </template>
-                                </q-chat-message>
-                            </div>
-                        </q-infinite-scroll>
-                    </q-scroll-area>
-
+                            </q-infinite-scroll>
+                        </q-scroll-area>
+                 
                     <!-- bottom message input area -->
                     <div class="bottom-message-area flex">
+                        
                         <q-input class="new-message-input" filled v-model="newMessage" placeholder="Message" />
                         <q-btn flat round color="primary" icon="send" @click="sendMessage" />
                     </div>
@@ -96,13 +103,13 @@
             <q-card style="min-width: 350px; max-height: 80vh;">
                 <q-card-section class="row items-center justify-between">
                     <div class="text-h6">Channel members</div>
-                    <!-- add member button -->
+                    <!-- кнопка добавления участника -->
                     <q-btn flat round color="primary" icon="person_add" @click="showAddUserDialog = true" />
                 </q-card-section>
 
                 <q-separator />
 
-                <!-- members list -->
+                <!-- list of members -->
                 <q-card-section class="scroll" style="max-height: 60vh; overflow-y: auto;">
                     <q-item v-for="memberId in currentChannel?.members" :key="memberId" class="q-my-xs">
                         <q-item-section avatar>
@@ -118,6 +125,7 @@
                             <q-btn v-else dense flat round color="warning" icon="logout" @click="leaveChannel" />
                         </q-item-section>
                     </q-item>
+
                 </q-card-section>
 
                 <q-card-actions align="right">
@@ -126,7 +134,7 @@
             </q-card>
         </q-dialog>
 
-        <!-- dialog for adding user -->
+        <!-- Диалог добавления нового пользователя -->
         <q-dialog v-model="showAddUserDialog">
             <q-card style="min-width: 300px;">
                 <q-card-section>
@@ -144,6 +152,7 @@
                 </q-card-actions>
             </q-card>
         </q-dialog>
+
 
         <!-- dialog for creating new channel -->
         <q-dialog v-model="showCreateDialog">
@@ -168,10 +177,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed} from 'vue'
 import { useQuasar } from 'quasar'
 import ChannelItem from 'src/components/ChannelItem.vue'
-import vHighlightMention from "../utils/highlight-mention";
+import vHighlightMention from  "../utils/highlight-mention";
+
 import { Channel } from 'src/models';
 
 /* Quasar instance for notifications */
@@ -181,13 +191,10 @@ const $q = useQuasar()
 const splitterModel = ref(25)
 const splitterDisabled = ref(false)
 const chatMessagesScrollArea = ref<any>(null)
-
-/* dialogs */
+/* dialog controls */
 const showCreateDialog = ref(false)
 const showMembersDialog = ref(false)
 const showAddUserDialog = ref(false)
-
-/* new member inputs */
 const newMemberNickname = ref('')
 const newMemberEmail = ref('')
 
@@ -197,38 +204,37 @@ const isPrivate = ref(false)
 const newMessage = ref('')
 const searchQuery = ref('')
 
-/* responsive setup for mobile view */
 if (window.innerWidth < 1024) {
-    splitterDisabled.value = true
-    splitterModel.value = 100
-} else {
-    splitterDisabled.value = false
-    splitterModel.value = 25
-}
-
-/* choose bg color for each message */
+        splitterDisabled.value = true
+        splitterModel.value = 100
+    } else {
+        splitterDisabled.value = false
+        splitterModel.value = 25
+    }
 function getMessageColor(message: any): string {
-    const text = message.text ?? ''
-    if (text.includes(`@${fakeUser.nickname.toLowerCase()}`)) {
-        return 'amber-7' // mention highlight
-    }
-    if (message.local) {
-        return 'green-4' // local user message
-    }
-    return 'grey-3' // others
-}
+  const text = message.text ?? ''
 
-/* mock user */
+  if (text.includes(`@${fakeUser.nickname.toLowerCase()}`)) {
+    return 'amber-7' // mention highlight
+  }
+
+  if (message.local) {
+    return 'green-4' //  local user message
+  }
+
+  return 'grey-3' //  others
+}
+/* fake user object */
 const fakeUser = { id: 1, nickname: 'Kal', email: 'kal@example.com', avatar: 'https://cdn.quasar.dev/img/avatar4.jpg' }
 
-/* mock channels */
+/* fake channels data */
 const channels = ref([
     {
         id: 1,
         name: 'General',
         members: [1, 2, 3],
         messages: [
-            { id: 2, text: 'Welcome to General! @kal', sender: { id: 2, nickname: 'Alice' }, date: new Date(), local: true }
+            { id: 2, text: 'Welcome to General! @kal', sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' }, date: new Date(), local: true }
         ],
         lastMessage: {
             id: 1,
@@ -237,7 +243,7 @@ const channels = ref([
             userId: 2,
             channelId: 1,
             date: new Date(),
-            sender: { id: 2, nickname: 'Alice' }
+            sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' }
         }
     },
     {
@@ -250,25 +256,63 @@ const channels = ref([
             { id: 3, text: 'All good!', sender: fakeUser, date: new Date(), local: true },
             { id: 4, text: 'Nice to hear', sender: { nickname: 'Alice' }, date: new Date(), local: false },
         ],
-        lastMessage: { id: 4, channelId: 1, text: 'Nice to hear', userId: 2, sender: { id: 2, nickname: 'Alice' }, date: new Date(), local: false },
+        lastMessage: { id: 4,channelId: 1, text: 'Nice to hear',userId: 2, sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' }, date: new Date(), local: false }, 
     },
+    
+    {
+  id: 4,
+  name: 'Long chat',
+  members: [1, 2],
+  messages: [
+    { id: 1, text: 'Hey, welcome!', sender: fakeUser, date: new Date(), local: true },
+    { id: 2, text: 'Hello! How are you? @kal', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+    { id: 3, text: 'All good!', sender: fakeUser, date: new Date(), local: true },
+    { id: 4, text: 'Nice to hear', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+    { id: 5, text: 'What are you up to today?', sender: fakeUser, date: new Date(), local: true },
+    { id: 6, text: 'Just working on a project.', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+    { id: 7, text: 'Sounds fun!', sender: fakeUser, date: new Date(), local: true },
+    { id: 8, text: 'Yeah, learning Vue.js is quite interesting.', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+    { id: 9, text: 'I love Quasar components too!', sender: fakeUser, date: new Date(), local: true },
+    { id: 10, text: 'We should collaborate on something.', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+    { id: 11, text: 'Absolutely! Let’s plan it.', sender: fakeUser, date: new Date(), local: true },
+    { id: 12, text: 'Great! I’ll draft an idea.', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+    { id: 13, text: 'Looking forward to it.', sender: fakeUser, date: new Date(), local: true },
+  ],
+  lastMessage: {
+    id: 13,
+    channelId: 4,
+    text: 'Looking forward to it.',
+    userId: 1,
+    sender: fakeUser,
+    date: new Date(),
+    local: true
+  },
+}
+
 ])
 
-/* current opened channel */
+
+/* currently opened channel */
 const currentChannel = ref<any>(null)
 
-/* search filter */
+
+/* filtering channels by search query */
 const filteredChannels = computed(() => {
     return channels.value
         .filter(c => c.members.includes(fakeUser.id))
-        .filter(c => c.name.toLowerCase().includes(searchQuery.value.toLowerCase()))
-        .sort((a: any, b: any) => (b.lastMessage?.date?.getTime() ?? 0) - (a.lastMessage?.date?.getTime() ?? 0))
+        .filter(c => c.name.toLowerCase().includes(searchQuery.value.toLowerCase())).sort((channel1:any, channel2:any)=>
+        {
+            const t1 = channel1.lastMessage?.date?.getTime() ?? 0
+            const t2 = channel2.lastMessage?.date?.getTime() ?? 0
+            return t2 - t1 // Sort newest first
+        })
 })
 
-/* open channel */
+
+/* switch current channel */
 function openChannel(channel: any) {
     currentChannel.value = channel
-    setTimeout(() => {
+     setTimeout(() => {
         chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100, 10)
     }, 100)
     if (window.innerWidth < 1024) {
@@ -277,7 +321,7 @@ function openChannel(channel: any) {
     }
 }
 
-/* create new channel */
+/* create new mock channel */
 function createChannel() {
     if (!channelName.value.trim()) return
     const id = Date.now()
@@ -302,66 +346,76 @@ function createChannel() {
     showCreateDialog.value = false
 }
 
-/* fake users list */
+
 const allUsers = ref([
     fakeUser,
     { id: 2, nickname: 'Alice', email: 'alice@mail.com', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' },
     { id: 3, nickname: 'Bob', email: 'bob@mail.com', avatar: 'https://cdn.quasar.dev/img/avatar3.jpg' },
 ])
 
-/* get user by id */
 function getUser(id: number) {
     return allUsers.value.find(u => u.id === id) || { nickname: 'Unknown', email: '', avatar: '' }
 }
 
-/* load older messages (mock) */
 function onLoad(idx: number, done: (stop: boolean) => void) {
-    if (currentChannel.value.id === 4) {
-        setTimeout(() => {
-            const olderMessages = [
-                { id: 0, text: 'This is an older message', sender: { nickname: 'Alice' }, date: new Date(Date.now() - 600000), local: false },
-                { id: -1, text: 'Even older message', sender: fakeUser, date: new Date(Date.now() - 900000), local: true },
-            ];
-            currentChannel.value = {
-                ...currentChannel.value,
-                messages: [...olderMessages, ...currentChannel.value.messages]
-            };
-            done(true)
-        }, 2500)
-    } else done(true)
+  if (currentChannel.value.id === 4) {
+    // Simulate network delay
+    setTimeout(() => {
+      const olderMessages = [
+        { id: 0, text: 'This is an older message', sender: { nickname: 'Alice' }, date: new Date(Date.now() - 1000 * 60 * 10), local: false },
+        { id: -1, text: 'Even older message', sender: fakeUser, date: new Date(Date.now() - 1000 * 60 * 15), local: true },
+        { id: -2, text: 'Oldest message in this batch', sender: { nickname: 'Alice' }, date: new Date(Date.now() - 1000 * 60 * 20), local: false },
+      ];
+
+      // Prepend older messages to currentChannel
+      currentChannel.value = {
+        ...currentChannel.value,
+        messages: [...olderMessages, ...currentChannel.value.messages]
+      };
+
+      // Signal that loading is complete
+      done(true); // true = no more messages, false = can load more
+    }, 2500); // 1 second delay
+  } else {
+    done(true); // For other channels, no load
+  }
 }
 
-/* send message */
+/* send a new message (mock only) */
 function sendMessage() {
     if (!newMessage.value.trim() || !currentChannel.value) return
-    const msg = {
+    let newMessageObj = {
         id: Date.now(),
         text: newMessage.value,
         sender: fakeUser,
         date: new Date(),
         local: true,
     }
-    currentChannel.value.messages.push(msg)
-    currentChannel.value.lastMessage = msg
+    currentChannel.value.messages.push(newMessageObj);
+    currentChannel.value.lastMessage = newMessageObj;
     newMessage.value = ''
     $q.notify({ type: 'info', message: 'Message sent (mock)' })
     chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
 }
 
-/* add member to channel */
 function addMember() {
     if (!newMemberNickname.value.trim() || !newMemberEmail.value.trim() || !currentChannel.value) {
         $q.notify({ type: 'warning', message: 'Please fill both nickname and email' })
         return
     }
     const existing = allUsers.value.find(u => u.nickname === newMemberNickname.value)
-    let user = existing || {
-        id: Date.now(),
-        nickname: newMemberNickname.value,
-        email: newMemberEmail.value,
-        avatar: 'https://cdn.quasar.dev/img/avatar.png'
+    let user
+    if (existing) {
+        user = existing
+    } else {
+        user = {
+            id: Date.now(),
+            nickname: newMemberNickname.value,
+            email: newMemberEmail.value,
+            avatar: 'https://cdn.quasar.dev/img/avatar.png'
+        }
+        allUsers.value.push(user)
     }
-    if (!existing) allUsers.value.push(user)
     if (currentChannel.value.members.includes(user.id)) {
         $q.notify({ type: 'negative', message: 'User already in channel' })
         return
@@ -373,7 +427,6 @@ function addMember() {
     showAddUserDialog.value = false
 }
 
-/* remove member */
 function removeMember(id: number) {
     if (!currentChannel.value) return
     currentChannel.value.members = currentChannel.value.members.filter((m: number) => m !== id)
@@ -381,7 +434,7 @@ function removeMember(id: number) {
     $q.notify({ type: 'warning', message: `${user.nickname} removed from channel.` })
 }
 
-/* leave channel */
+
 function leaveChannel() {
     if (!currentChannel.value) return
     currentChannel.value.members = currentChannel.value.members.filter((id: number) => id !== fakeUser.id)
@@ -391,8 +444,10 @@ function leaveChannel() {
     $q.notify({ type: 'info', message: 'You left the channel.' })
 }
 
-/* handle responsive resize */
+
+
 window.addEventListener("resize", () => {
+    console.log(window.innerWidth < 1024);
     if (window.innerWidth < 1024) {
         splitterDisabled.value = true
         splitterModel.value = 100
@@ -401,7 +456,84 @@ window.addEventListener("resize", () => {
         splitterModel.value = 25
     }
 })
-
-/* status (online/offline/DND) */
 const currentStatus = ref('online');
 </script>
+
+<style lang="scss">
+/* main chat layout */
+.chat-view {
+    flex-direction: column;
+
+    .chat-scroll-area {
+        flex: auto;
+        background-color: #f6f6f6;
+    }
+}
+.mention
+{
+    color:blue;
+}
+/* chat header area */
+.chat-top-area {
+    flex: none;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+
+    .q-message-avatar {
+        height: 40px;
+        width: 40px;
+        min-width: auto;
+    }
+
+    p {
+        margin-left: 10px;
+        flex: auto;
+    }
+
+    .q-btn {
+        margin: 4px;
+    }
+}
+
+/* input section at bottom */
+.bottom-message-area {
+    flex-direction: row;
+    padding: 10px;
+
+    .q-input {
+        flex: 10;
+
+        .q-field__control {
+            height: 40px;
+        }
+    }
+}
+
+/* left sidebar with channels */
+.channels-area {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.status-area
+{
+    display: flex; align-items: center; justify-content: center;
+    .q-btn-group.row.no-wrap.q-btn-group--unelevated.q-btn-group--rounded.inline.q-btn-toggle
+    {
+        flex-wrap: wrap !important;
+    }
+    padding: 10px;
+}
+
+/* responsive adjustments */
+@media screen and (max-width:1024px) {
+    .q-splitter--vertical>.q-splitter__separator>div {
+        display: none;
+    }
+
+    .back-button {
+        display: inline-flex;
+    }
+}
+</style>
