@@ -7,25 +7,8 @@
       </q-avatar>
 
       <q-toolbar-title>Chatik</q-toolbar-title>
-      <p>Status</p>
-      <div class="q-pa-md">
-         <q-btn-toggle
-            v-model="currentStatus"
-           
-            no-caps
-            rounded
-            unelevated
-            toggle-color="blue"
-            color="blue-grey-1"
-            text-color="primary"
-            :options="[
-              {label: 'Online', value: 'online'},
-              {label: 'DND', value: 'dnd'},
-              {label: 'Offline', value: 'offline'}
-            ]"
-          />
-      </div>
- 
+      
+     
 
       <q-btn 
       class="settings"

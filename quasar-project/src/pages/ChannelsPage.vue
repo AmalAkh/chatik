@@ -6,10 +6,28 @@
             <!-- left panel with channels list -->
             <template v-slot:before>
                 <div class="channels-area">
+                    
                     <!-- header with create button -->
                     <div class="row justify-center items-center q-mt-sm">
                         <q-btn flat round color="primary" icon="add_circle" @click="showCreateDialog = true" />
                         <span class="text-subtitle2">Channels</span>
+                    </div>
+                    <div class="status-area row justify-center items-center q-mt-sm ">
+                        <q-btn-toggle
+                            v-model="currentStatus"
+                        
+                            no-caps
+                            rounded
+                            unelevated
+                            toggle-color="blue"
+                            color="blue-grey-1"
+                            text-color="primary"
+                            :options="[
+                            {label: 'Online', value: 'online'},
+                            {label: 'DND', value: 'dnd'},
+                            {label: 'Offline', value: 'offline'}
+                            ]"
+                        />
                     </div>
 
                     <!-- search bar -->
@@ -186,7 +204,13 @@ const isPrivate = ref(false)
 const newMessage = ref('')
 const searchQuery = ref('')
 
-
+if (window.innerWidth < 1024) {
+        splitterDisabled.value = true
+        splitterModel.value = 100
+    } else {
+        splitterDisabled.value = false
+        splitterModel.value = 25
+    }
 function getMessageColor(message: any): string {
   const text = message.text ?? ''
 
@@ -371,6 +395,7 @@ function sendMessage() {
     currentChannel.value.lastMessage = newMessageObj;
     newMessage.value = ''
     $q.notify({ type: 'info', message: 'Message sent (mock)' })
+    chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
 }
 
 function addMember() {
@@ -422,6 +447,7 @@ function leaveChannel() {
 
 
 window.addEventListener("resize", () => {
+    console.log(window.innerWidth < 1024);
     if (window.innerWidth < 1024) {
         splitterDisabled.value = true
         splitterModel.value = 100
@@ -430,7 +456,7 @@ window.addEventListener("resize", () => {
         splitterModel.value = 25
     }
 })
-
+const currentStatus = ref('online');
 </script>
 
 <style lang="scss">
@@ -489,6 +515,15 @@ window.addEventListener("resize", () => {
     display: flex;
     flex-direction: column;
     height: 100%;
+}
+.status-area
+{
+    display: flex; align-items: center; justify-content: center;
+    .q-btn-group.row.no-wrap.q-btn-group--unelevated.q-btn-group--rounded.inline.q-btn-toggle
+    {
+        flex-wrap: wrap !important;
+    }
+    padding: 10px;
 }
 
 /* responsive adjustments */
