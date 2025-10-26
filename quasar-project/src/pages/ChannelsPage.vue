@@ -90,7 +90,7 @@
                  
                     <!-- bottom message input area -->
                     <div class="bottom-message-area flex">
-                        <q-btn flat round color="primary" icon="attach_file" />
+                        
                         <q-input class="new-message-input" filled v-model="newMessage" placeholder="Message" />
                         <q-btn flat round color="primary" icon="send" @click="sendMessage" />
                     </div>
