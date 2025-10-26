@@ -63,7 +63,7 @@ import { useQuasar } from 'quasar'
 const router = useRouter()
 const $q = useQuasar()
 
-const currentStatus = ref('online');
+
 const showSettingsDialog = ref(false);
 
 const onlyPersonalMessagesDialog = ref(false);
