@@ -49,10 +49,11 @@
                     <!-- messages area -->
                     <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
                         <div v-if="currentChannel">
-                            <q-chat-message v-for="message in currentChannel.messages" :key="message.id"
+                            <q-chat-message v-for="message in currentChannel.messages" :key="`${currentChannel.id}-${message.id}`"
                                 :name="message.sender.nickname" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
                                 :text="[message.text]" :sent="message.local"
-                                :stamp="message.date.toLocaleTimeString()" >
+                                :stamp="message.date.toLocaleTimeString()" 
+                                :bg-color="getMessageColor(message)">
                                 <template #default>
                                     <div v-highlight-mention>{{ message.text }}</div>
                                 </template>
@@ -174,6 +175,20 @@ const isPrivate = ref(false)
 const newMessage = ref('')
 const searchQuery = ref('')
 
+
+function getMessageColor(message: any): string {
+  const text = message.text ?? ''
+
+  if (text.includes(`@${fakeUser.nickname.toLowerCase()}`)) {
+    return 'amber-7' // mention highlight
+  }
+
+  if (message.local) {
+    return 'green-4' //  local user message
+  }
+
+  return 'grey-3' //  others
+}
 /* fake user object */
 const fakeUser = { id: 1, nickname: 'Kal', email: 'kal@example.com', avatar: 'https://cdn.quasar.dev/img/avatar4.jpg' }
 
@@ -184,7 +199,7 @@ const channels = ref([
         name: 'General',
         members: [1, 2, 3],
         messages: [
-            { id: 2, text: 'Welcome to General!', sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' }, date: new Date(), local: true }
+            { id: 2, text: 'Welcome to General! @kal', sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' }, date: new Date(), local: true }
         ],
         lastMessage: {
             id: 1,
@@ -197,30 +212,14 @@ const channels = ref([
         }
     },
     {
-        id: 2,
-        name: 'Random',
-        members: [2, 3],
-        messages: [
-            { id: 2, text: 'Random thoughts here', sender: { id: 3, nickname: 'Bob', avatar: 'https://cdn.quasar.dev/img/avatar3.jpg' }, date: new Date(), local: true }
-        ],
-        lastMessage: {
-            id: 2,
-            text: 'Random thoughts here',
-            local: false,
-            userId: 3,
-            channelId: 2,
-            date: new Date(),
-            sender: { id: 3, nickname: 'Bob', avatar: 'https://cdn.quasar.dev/img/avatar3.jpg' }
-        }
-    },
-    {
         id: 3,
         name: 'Developers',
         members: [1, 2],
         messages: [
             { id: 1, text: 'Hey, welcome!', sender: fakeUser, date: new Date(), local: true },
-            { id: 2, text: 'Hello! How are you?', sender: { nickname: 'Alice' }, date: new Date(), local: false },
-            { id: 3, text: 'All good!', sender: fakeUser, date: new Date(), local: true }
+            { id: 2, text: 'Hello! How are you? @kal', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+            { id: 3, text: 'All good!', sender: fakeUser, date: new Date(), local: true },
+            { id: 4, text: 'Nice to hear', sender: { nickname: 'Alice' }, date: new Date(), local: false },
         ],
         lastMessage: {
             id: 3,

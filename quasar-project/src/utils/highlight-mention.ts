@@ -1,3 +1,4 @@
+import fakeUser from "./fakeUser"
 export default {
   mounted(el:Element) {
     const text = el.textContent
@@ -9,6 +10,7 @@ export default {
         const span = document.createElement('span')
         span.textContent = part
         span.classList.add('mention')
+        
         el.appendChild(span)
       } else {
         el.appendChild(document.createTextNode(part))
