@@ -1,118 +1,90 @@
 <template>
     <!-- main page -->
     <q-page class="flex flex-center">
-        <!-- login card -->
+        <!-- register card -->
         <q-card class="q-pa-lg shadow-2" style="width: 350px; max-width: 90vw;">
-        
-            <!-- header section -->
+
+            <!-- header -->
             <q-card-section>
                 <div class="text-h6 text-center">Register</div>
             </q-card-section>
 
-            <!-- login form -->
-            <q-form @submit="onSubmit" class="q-gutter-xs">
-                <!-- First Name input -->
-                <q-input 
-                    filled 
-                    v-model="firstName" 
-                    type="text" 
-                    label="First name" 
-                    :rules="[val => !!val || 'First name is required']"
-                />
+            <!-- registration form -->
+            <q-form @submit.prevent="onSubmit" class="q-gutter-xs">
+                <!-- first name input -->
+                <q-input filled v-model="firstName" label="First name"
+                    :rules="[val => !!val || 'First name is required']" />
 
-                <!-- Last Name input -->
-                <q-input 
-                    filled 
-                    v-model="lastName" 
-                    type="text" 
-                    label="Last name" 
-                    :rules="[val => !!val || 'Last name is required']"
-                />
+                <!-- last name input -->
+                <q-input filled v-model="lastName" label="Last name"
+                    :rules="[val => !!val || 'Last name is required']" />
 
-                <!-- nickname -->
-                <q-input
-                    filled
-                    v-model="nickname"
-                    label="Nickname"
-                    :rules="[val => !!val || 'Nickname is required']"
-                />
+                <!-- nickname input -->
+                <q-input filled v-model="nickname" label="Nickname" :rules="[val => !!val || 'Nickname is required']" />
 
                 <!-- email input -->
-                <q-input
-                    filled
-                    v-model="email"
-                    label="Email"
-                    type="email"
-                    :rules="[val => !!val || 'Email is required']"
-                />
-                
-                <!-- password input -->
-                <q-input
-                    filled
-                    v-model="password"
-                    label="Password"
-                    type="password"
-                    :rules="[val => !!val || 'Password is required']"
-                />
+                <q-input filled v-model="email" label="Email" type="email"
+                    :rules="[val => !!val || 'Email is required']" />
 
-                <!-- confirm password -->
-                <q-input
-                    filled
-                    v-model="confirmPassword"
-                    label="Confirm password"
-                    type="password"
-                    :rules="[val => val === password || 'Passwords must match']"
-                />
+                <!-- password input -->
+                <q-input filled v-model="password" label="Password" type="password"
+                    :rules="[val => !!val || 'Password is required']" />
+
+                <!-- confirm password input -->
+                <q-input filled v-model="confirmPassword" label="Confirm password" type="password"
+                    :rules="[val => val === password || 'Passwords must match']" />
+
+                <!-- submit button -->
                 <q-btn label="Register" type="submit" color="primary" class="full-width" />
             </q-form>
 
-            <!-- buttons -->
+            <!-- link to login -->
             <q-card-actions class="column q-gutter-sm full-width">
-                <q-btn flat label="Login" color="secondary" @click="goToLogin"/>
+                <q-btn flat label="Login" color="secondary" @click="goToLogin" />
             </q-card-actions>
         </q-card>
     </q-page>
 </template>
-  
+
 <script setup lang="ts">
-    import { ref } from 'vue'
-    import { useRouter } from 'vue-router'
-    import { api } from 'boot/axios'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
-    const router = useRouter()
+/* router for navigation */
+const router = useRouter()
 
-    /* reactive form fields */
-    const email = ref<string>('')
-    const password = ref<string>('')
-    const firstName = ref<string>('')
-    const lastName = ref<string>('')
-    const nickname = ref<string>('')
-    const confirmPassword = ref<string>('')
+/* reactive form fields */
+const email = ref('')
+const password = ref('')
+const firstName = ref('')
+const lastName = ref('')
+const nickname = ref('')
+const confirmPassword = ref('')
 
-    /* form submit handler */
-    async function onSubmit () {
-        try {
-            const res = await api.post('/auth/register', {
-            first_name: firstName.value,
-            last_name: lastName.value,
-            nickname: nickname.value,
-            email: email.value,
-            password: password.value,
-            })
+/* mock register function (no API calls) */
+function onSubmit() {
+    console.log('Mock registration:', {
+        firstName: firstName.value,
+        lastName: lastName.value,
+        nickname: nickname.value,
+        email: email.value,
+    })
 
-            console.log('Register success:', res.data)
+    // save mock user data
+    localStorage.setItem('mock_registered_user', JSON.stringify({
+        firstName: firstName.value,
+        lastName: lastName.value,
+        nickname: nickname.value,
+        email: email.value,
+    }))
 
-            void router.push('/auth/login')
-        } catch (err: unknown) {
-            if (err instanceof Error) {
-                console.error(err.message)
-            } else {
-                console.error('Unknown error', err)
-            }
-        }
-    }
+    // mock success message and redirect
+    alert('Registration successful (mock)')
+    void router.push('/auth/login')
+}
 
-    async function goToLogin (): Promise<void> {
-        await router.push('/auth/login')
-    }
+/* navigate to login page */
+function goToLogin() {
+    void router.push('/auth/login')
+}
 </script>
