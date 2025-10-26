@@ -155,6 +155,8 @@ import { useQuasar } from 'quasar'
 import ChannelItem from 'src/components/ChannelItem.vue'
 import vHighlightMention from  "../utils/highlight-mention";
 
+import { Channel } from 'src/models';
+
 /* Quasar instance for notifications */
 const $q = useQuasar()
 
@@ -221,15 +223,7 @@ const channels = ref([
             { id: 3, text: 'All good!', sender: fakeUser, date: new Date(), local: true },
             { id: 4, text: 'Nice to hear', sender: { nickname: 'Alice' }, date: new Date(), local: false },
         ],
-        lastMessage: {
-            id: 3,
-            text: 'Push to main?',
-            local: true,
-            userId: 1,
-            channelId: 3,
-            date: new Date(),
-            sender: fakeUser
-        }
+        lastMessage: { id: 4,channelId: 1, text: 'Nice to hear',userId: 2, sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' }, date: new Date(), local: false }, 
     }
 ])
 
@@ -242,7 +236,12 @@ const currentChannel = ref<any>(null)
 const filteredChannels = computed(() => {
     return channels.value
         .filter(c => c.members.includes(fakeUser.id))
-        .filter(c => c.name.toLowerCase().includes(searchQuery.value.toLowerCase()))
+        .filter(c => c.name.toLowerCase().includes(searchQuery.value.toLowerCase())).sort((channel1:any, channel2:any)=>
+        {
+            const t1 = channel1.lastMessage?.date?.getTime() ?? 0
+            const t2 = channel2.lastMessage?.date?.getTime() ?? 0
+            return t2 - t1 // Sort newest first
+        })
 })
 
 
