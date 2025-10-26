@@ -47,20 +47,29 @@
                     </div>
 
                     <!-- messages area -->
-                    <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
-                        <div v-if="currentChannel">
-                            <q-chat-message v-for="message in currentChannel.messages" :key="`${currentChannel.id}-${message.id}`"
-                                :name="message.sender.nickname" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
-                                :text="[message.text]" :sent="message.local"
-                                :stamp="message.date.toLocaleTimeString()" 
-                                :bg-color="getMessageColor(message)">
-                                <template #default>
-                                    <div v-highlight-mention>{{ message.text }}</div>
+                   
+                        
+                        <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
+                            <q-infinite-scroll v-if="currentChannel" @load="onLoad" reverse>
+                                <template v-slot:loading>
+                                    <div class="row justify-center q-my-md">
+                                        <q-spinner-dots color="primary" size="40px" />
+                                    </div>
                                 </template>
-                            </q-chat-message>
-                        </div>
-                    </q-scroll-area>
-
+                                <div v-if="currentChannel">
+                                    <q-chat-message v-for="message in currentChannel.messages" :key="`${currentChannel.id}-${message.id}`"
+                                        :name="message.sender.nickname" avatar="https://cdn.quasar.dev/img/avatar4.jpg"
+                                        :text="[message.text]" :sent="message.local"
+                                        :stamp="message.date.toLocaleTimeString()" 
+                                        :bg-color="getMessageColor(message)">
+                                        <template #default>
+                                            <div v-highlight-mention>{{ message.text }}</div>
+                                        </template>
+                                    </q-chat-message>
+                                </div>
+                            </q-infinite-scroll>
+                        </q-scroll-area>
+                 
                     <!-- bottom message input area -->
                     <div class="bottom-message-area flex">
                         <q-btn flat round color="primary" icon="attach_file" />
@@ -163,7 +172,7 @@ const $q = useQuasar()
 /* layout controls */
 const splitterModel = ref(25)
 const splitterDisabled = ref(false)
-
+const chatMessagesScrollArea = ref<any>(null)
 /* dialog controls */
 const showCreateDialog = ref(false)
 const showMembersDialog = ref(false)
@@ -224,7 +233,38 @@ const channels = ref([
             { id: 4, text: 'Nice to hear', sender: { nickname: 'Alice' }, date: new Date(), local: false },
         ],
         lastMessage: { id: 4,channelId: 1, text: 'Nice to hear',userId: 2, sender: { id: 2, nickname: 'Alice', avatar: 'https://cdn.quasar.dev/img/avatar2.jpg' }, date: new Date(), local: false }, 
-    }
+    },
+    
+    {
+  id: 4,
+  name: 'Long chat',
+  members: [1, 2],
+  messages: [
+    { id: 1, text: 'Hey, welcome!', sender: fakeUser, date: new Date(), local: true },
+    { id: 2, text: 'Hello! How are you? @kal', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+    { id: 3, text: 'All good!', sender: fakeUser, date: new Date(), local: true },
+    { id: 4, text: 'Nice to hear', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+    { id: 5, text: 'What are you up to today?', sender: fakeUser, date: new Date(), local: true },
+    { id: 6, text: 'Just working on a project.', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+    { id: 7, text: 'Sounds fun!', sender: fakeUser, date: new Date(), local: true },
+    { id: 8, text: 'Yeah, learning Vue.js is quite interesting.', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+    { id: 9, text: 'I love Quasar components too!', sender: fakeUser, date: new Date(), local: true },
+    { id: 10, text: 'We should collaborate on something.', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+    { id: 11, text: 'Absolutely! Let’s plan it.', sender: fakeUser, date: new Date(), local: true },
+    { id: 12, text: 'Great! I’ll draft an idea.', sender: { nickname: 'Alice' }, date: new Date(), local: false },
+    { id: 13, text: 'Looking forward to it.', sender: fakeUser, date: new Date(), local: true },
+  ],
+  lastMessage: {
+    id: 13,
+    channelId: 4,
+    text: 'Looking forward to it.',
+    userId: 1,
+    sender: fakeUser,
+    date: new Date(),
+    local: true
+  },
+}
+
 ])
 
 
@@ -248,7 +288,9 @@ const filteredChannels = computed(() => {
 /* switch current channel */
 function openChannel(channel: any) {
     currentChannel.value = channel
-
+     setTimeout(() => {
+        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100, 10)
+    }, 100)
     if (window.innerWidth < 1024) {
         splitterModel.value = 0
         splitterDisabled.value = true
@@ -291,6 +333,29 @@ function getUser(id: number) {
     return allUsers.value.find(u => u.id === id) || { nickname: 'Unknown', email: '', avatar: '' }
 }
 
+function onLoad(idx: number, done: (stop: boolean) => void) {
+  if (currentChannel.value.id === 4) {
+    // Simulate network delay
+    setTimeout(() => {
+      const olderMessages = [
+        { id: 0, text: 'This is an older message', sender: { nickname: 'Alice' }, date: new Date(Date.now() - 1000 * 60 * 10), local: false },
+        { id: -1, text: 'Even older message', sender: fakeUser, date: new Date(Date.now() - 1000 * 60 * 15), local: true },
+        { id: -2, text: 'Oldest message in this batch', sender: { nickname: 'Alice' }, date: new Date(Date.now() - 1000 * 60 * 20), local: false },
+      ];
+
+      // Prepend older messages to currentChannel
+      currentChannel.value = {
+        ...currentChannel.value,
+        messages: [...olderMessages, ...currentChannel.value.messages]
+      };
+
+      // Signal that loading is complete
+      done(true); // true = no more messages, false = can load more
+    }, 2500); // 1 second delay
+  } else {
+    done(true); // For other channels, no load
+  }
+}
 
 /* send a new message (mock only) */
 function sendMessage() {
