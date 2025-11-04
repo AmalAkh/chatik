@@ -60,25 +60,25 @@ Ws.io.use(async (socket, next) => {
     
   
 });
-Ws.io.on('connection', (socket) => {
-    console.log("new connection");
-
-    const userId = socket.handshake.auth.userId
-
-    if (userId) {
-      User.query().where('id', userId).update({ status: 'online' })
-      Ws.io.emit('user_status_changed', { userId, status: 'online' })
+Ws.io.on('connection', async (socket) => {
+    console.log('new connection')
+  
+    const user = socket.data.user
+  
+    if (user) {
+      await User.query().where('id', user.id).update({ status: 'online' })
+      Ws.io.emit('user_status_changed', { userId: user.id, status: 'online' })
     }
   
     socket.on('disconnect', async () => {
-      await User.query().where('id', userId).update({ status: 'offline' })
-      Ws.io.emit('user_status_changed', { userId, status: 'offline' })
+      if (user) {
+        await User.query().where('id', user.id).update({ status: 'offline' })
+        Ws.io.emit('user_status_changed', { userId: user.id, status: 'offline' })
+      }
     })
-    
-    socket.on("new_message", (msg)=>
-    {
-        socket.to(msg.channelId.toString()).emit("new_message", msg);
-       
-       
+  
+    socket.on('new_message', (msg) => {
+      socket.to(msg.channelId.toString()).emit('new_message', msg)
     })
-})
+  })
+  
