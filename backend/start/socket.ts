@@ -2,7 +2,6 @@ import Ws from 'App/Services/Ws'
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import auth from 'Config/auth';
 import User from 'App/Models/User';
-import User from 'App/Models/ApiKey';
 import ApiToken from 'App/Models/ApiToken';
 import HttpContext from '@ioc:Adonis/Core/HttpContext'
 import AuthManager from '@ioc:Adonis/Addons/Auth';
@@ -64,6 +63,17 @@ Ws.io.use(async (socket, next) => {
 Ws.io.on('connection', (socket) => {
     console.log("new connection");
 
+    const userId = socket.handshake.auth.userId
+
+    if (userId) {
+      User.query().where('id', userId).update({ status: 'online' })
+      Ws.io.emit('user_status_changed', { userId, status: 'online' })
+    }
+  
+    socket.on('disconnect', async () => {
+      await User.query().where('id', userId).update({ status: 'offline' })
+      Ws.io.emit('user_status_changed', { userId, status: 'offline' })
+    })
     
     socket.on("new_message", (msg)=>
     {

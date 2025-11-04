@@ -4,6 +4,15 @@
             <!-- left panel with channels -->
             <template v-slot:before>
                 <div class="channels-area">
+                    <div class="status-area row justify-center items-center q-mt-sm ">
+                        <q-btn-toggle v-model="userStatus" no-caps rounded unelevated toggle-color="blue"
+                            color="blue-grey-1" text-color="primary" @update:model-value="updateStatus" :options="[
+                                { label: 'Online', value: 'online' },
+                                { label: 'DND', value: 'dnd' },
+                                { label: 'Offline', value: 'offline' }
+                            ]" />
+                    </div>
+
                     <!-- header with create button -->
                     <div class="row justify-center items-center q-mt-sm">
                         <q-btn flat round color="primary" icon="add_circle" @click="showCreateDialog = true" />
@@ -93,6 +102,15 @@
                             <q-item-label caption>{{ member.email }}</q-item-label>
                         </q-item-section>
 
+                        <q-item-label caption>
+                            <q-badge :color="member.status === 'online'
+                                ? 'positive'
+                                : member.status === 'dnd'
+                                    ? 'orange'
+                                    : 'grey'" :label="member.status" />
+                        </q-item-label>
+
+
                         <q-item-section side>
                             <template v-if="isOwner(member)">
                                 <q-badge color="primary" label="Owner" />
@@ -161,11 +179,27 @@ import ChannelItem from 'src/components/ChannelItem.vue'
 import { api } from 'boot/axios'
 import { io } from "socket.io-client";
 import { useRouter } from 'vue-router';
-import type { Channel, ChannelMessage, User } from 'src/models';
+import type { Channel, ChannelMessage, User, UserStatus } from 'src/models';
 import { useQuasar } from 'quasar'
 
 const $q = useQuasar()
 const router = useRouter()
+
+const userStatus = ref('online')
+
+async function updateStatus() {
+    try {
+        console.log('Updating status to:', userStatus.value)
+        await api.put(
+            '/user/status',
+            { status: userStatus.value },
+            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+        )
+    } catch (err) {
+        showError(err)
+    }
+}
+
 
 // Notify helpers
 function showError(error: any) {
@@ -286,14 +320,14 @@ function showRemoveButton(member: User): boolean {
 }
 
 function isOwner(member: User): boolean {
-  const channel = currentChannel.value
-  if (!channel) return false
-  return member.id === channel.ownerId
+    const channel = currentChannel.value
+    if (!channel) return false
+    return member.id === channel.ownerId
 }
 
 function isCurrentUser(member: User): boolean {
-  const myId = Number(localStorage.getItem('userid') || localStorage.getItem('userId') || 0)
-  return member.id === myId
+    const myId = Number(localStorage.getItem('userid') || localStorage.getItem('userId') || 0)
+    return member.id === myId
 }
 
 
@@ -398,6 +432,11 @@ onMounted(async () => {
         const targetChannel = channels.value.find(channel => channel.id == msg.channelId)
         if (targetChannel) targetChannel.lastMessage = msg
     })
+    currentSocket.value.on("user_status_changed", (data: { userId: number, status: UserStatus }) => {
+        const member = channelMembers.value.find(m => m.id === data.userId)
+        if (member) member.status = data.status
+    })
+
 })
 
 const messages = ref<ChannelMessage[]>([])

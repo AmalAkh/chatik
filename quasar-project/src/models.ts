@@ -1,11 +1,13 @@
+export type UserStatus = 'online' | 'dnd' | 'offline'
+
 // User interface
 export interface User {
   id: number
   nickname: string
   email?: string
   avatar?: string
+  status?: UserStatus
 }
-
 
 // Interface for a single message in a channel
 export interface ChannelMessage {
