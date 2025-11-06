@@ -7,14 +7,7 @@
 
       <q-toolbar-title>Chatik</q-toolbar-title>
 
-      <q-btn
-        flat
-        round
-        dense
-        icon="logout"
-        @click="logout"
-        :title="'Logout'"
-      />
+      <q-btn flat round dense icon="logout" @click="logout" :title="'Logout'" />
     </q-toolbar>
 
     <q-page-container style="flex:auto;">
