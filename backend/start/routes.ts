@@ -5,6 +5,8 @@ Route.group(() => {
   Route.post('login', 'AuthController.login')
 }).prefix('/auth')
 
+Route.put('/user/status', 'UsersController.updateStatus').middleware('auth')
+
 Route.group(() => {
   Route.get('/', 'ChannelsController.index')
   Route.post('/', 'ChannelsController.create')

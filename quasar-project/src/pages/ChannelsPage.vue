@@ -4,6 +4,15 @@
             <!-- left panel with channels -->
             <template v-slot:before>
                 <div class="channels-area">
+                    <div class="status-area row justify-center items-center q-mt-sm ">
+                        <q-btn-toggle v-model="userStatus" no-caps rounded unelevated toggle-color="blue"
+                            color="blue-grey-1" text-color="primary" @update:model-value="updateStatus" :options="[
+                                { label: 'Online', value: 'online' },
+                                { label: 'DND', value: 'dnd' },
+                                { label: 'Offline', value: 'offline' }
+                            ]" />
+                    </div>
+
                     <!-- header with create button -->
                     <div class="row justify-center items-center q-mt-sm">
                         <q-btn flat round color="primary" icon="add_circle" @click="showCreateDialog = true" />
@@ -93,6 +102,15 @@
                             <q-item-label caption>{{ member.email }}</q-item-label>
                         </q-item-section>
 
+                        <q-item-label caption>
+                            <q-badge :color="member.status === 'online'
+                                ? 'positive'
+                                : member.status === 'dnd'
+                                    ? 'orange'
+                                    : 'grey'" :label="member.status" />
+                        </q-item-label>
+
+
                         <q-item-section side>
                             <template v-if="isOwner(member)">
                                 <q-badge color="primary" label="Owner" />
@@ -161,11 +179,47 @@ import ChannelItem from 'src/components/ChannelItem.vue'
 import { api } from 'boot/axios'
 import { io } from "socket.io-client";
 import { useRouter } from 'vue-router';
-import type { Channel, ChannelMessage, User } from 'src/models';
+import type { Channel, ChannelMessage, User, UserStatus } from 'src/models';
 import { useQuasar } from 'quasar'
+
+const offlineCutoff = ref<string | null>(localStorage.getItem('offlineCutoff') || null)
 
 const $q = useQuasar()
 const router = useRouter()
+
+const userStatus = ref('online')
+
+async function updateStatus() {
+    try {
+        await api.put('/user/status', { status: userStatus.value }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+
+        if (userStatus.value === 'offline') {
+            offlineCutoff.value = new Date().toISOString()
+            localStorage.setItem('offlineCutoff', offlineCutoff.value)
+            if (currentSocket.value?.connected) currentSocket.value.disconnect()
+            return
+        }
+
+        if (userStatus.value === 'online') {
+            offlineCutoff.value = null
+            localStorage.removeItem('offlineCutoff')
+            if (!currentSocket.value?.connected) {
+                currentSocket.value.connect()
+                await new Promise(resolve => currentSocket.value.once('connect', resolve))
+            }
+            await loadChannels()
+            if (currentChannel.value) {
+                await reloadCurrentChannel()
+            }
+        }
+    } catch (err) {
+        showError(err)
+    }
+}
+
+
+
+
 
 // Notify helpers
 function showError(error: any) {
@@ -286,14 +340,14 @@ function showRemoveButton(member: User): boolean {
 }
 
 function isOwner(member: User): boolean {
-  const channel = currentChannel.value
-  if (!channel) return false
-  return member.id === channel.ownerId
+    const channel = currentChannel.value
+    if (!channel) return false
+    return member.id === channel.ownerId
 }
 
 function isCurrentUser(member: User): boolean {
-  const myId = Number(localStorage.getItem('userid') || localStorage.getItem('userId') || 0)
-  return member.id === myId
+    const myId = Number(localStorage.getItem('userid') || localStorage.getItem('userId') || 0)
+    return member.id === myId
 }
 
 
@@ -325,23 +379,20 @@ async function inviteUser() {
 
 async function loadChannels() {
     try {
-        const res = await api.get('/channels', {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        })
+        const res = await api.get('/channels', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
         channels.value = res.data.map((channel: any) => {
-            if (channel.lastMessage && channel.lastMessage.date) {
-                convertMessageDate(channel.lastMessage)
+            if (channel.lastMessage && channel.lastMessage.date) convertMessageDate(channel.lastMessage)
+            const mapped = { ...channel, isPrivate: channel.is_private, ownerId: channel.owner_id }
+            if (userStatus.value === 'offline' && offlineCutoff.value && mapped.lastMessage?.date && new Date(mapped.lastMessage.date) > new Date(offlineCutoff.value)) {
+                mapped.lastMessage = null
             }
-            return {
-                ...channel,
-                isPrivate: channel.is_private,
-                ownerId: channel.owner_id,
-            }
+            return mapped
         })
     } catch (err) {
         showError(err)
     }
 }
+
 
 function convertMessageDate(msg: ChannelMessage) {
     msg.date = new Date(msg.date)
@@ -381,23 +432,60 @@ onMounted(async () => {
             Authorization: `Bearer ${localStorage.getItem("token")}`
         }
     })
-    currentSocket.value.on("connect", () => console.log("Connected!", currentSocket.value.id))
+    currentSocket.value.on("connect", async () => {
+        console.log("Connected!", currentSocket.value.id)
+
+        if (userStatus.value === "online") {
+            await loadChannels()
+            if (currentChannel.value) {
+                const newMessages = await api.get(`/messages/${currentChannel.value.id}?offset=0`)
+                messages.value.splice(0, messages.value.length, ...newMessages.data.messages)
+                await nextTick()
+                setTimeout(() => {
+                    chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
+                }, 150)
+            }
+
+        }
+    })
+
+
     currentSocket.value.on("disconnect", (reason: any) => console.log("Disconnected:", reason))
     currentSocket.value.on("connect_error", async (err: any) => {
         showError(err)
         await router.push("/auth/login")
     })
     currentSocket.value.on("new_message", async (msg: ChannelMessage) => {
+        if (msg.userId.toString() === localStorage.getItem("userid")) return
+
         convertMessageDate(msg)
+
         if (msg.channelId == currentChannel.value?.id) {
-            msg.local = msg.userId.toString() == localStorage.getItem("userid")
+            msg.local = false
             messages.value?.push(msg)
             await nextTick()
             chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
         }
+
         const targetChannel = channels.value.find(channel => channel.id == msg.channelId)
         if (targetChannel) targetChannel.lastMessage = msg
+
+        if (userStatus.value === 'dnd') return
+
+        if (msg.channelId !== currentChannel.value?.id && userStatus.value === 'online') {
+            $q.notify({
+                type: 'info',
+                message: `New message from ${msg.sender.nickname}: ${msg.text}`,
+                position: 'top-right'
+            })
+        }
     })
+
+    currentSocket.value.on("user_status_changed", (data: { userId: number, status: UserStatus }) => {
+        const member = channelMembers.value.find(m => m.id === data.userId)
+        if (member) member.status = data.status
+    })
+
 })
 
 const messages = ref<ChannelMessage[]>([])
@@ -406,7 +494,10 @@ let currentOffset = 20
 
 async function loadMessages(offset: number = 0) {
     try {
-        const res = await api.get(`/messages/${currentChannel.value!.id}?offset=${offset}`)
+        const params: any = { offset }
+        if (userStatus.value === 'offline' && offlineCutoff.value) params.maxCreatedAt = offlineCutoff.value
+
+        const res = await api.get(`/messages/${currentChannel.value!.id}`, { params })
         messages.value = [
             ...res.data.messages.map((m: ChannelMessage) => {
                 let msg = snakeToCamel(m)
@@ -421,6 +512,25 @@ async function loadMessages(offset: number = 0) {
         showError(err)
     }
 }
+
+async function reloadCurrentChannel() {
+    const params: any = { offset: 0 }
+    if (userStatus.value === 'offline' && offlineCutoff.value) params.maxCreatedAt = offlineCutoff.value
+    const res = await api.get(`/messages/${currentChannel.value!.id}`, { params })
+    const fresh = res.data.messages.map((m: any) => {
+        const msg = snakeToCamel(m)
+        msg.local = msg.userId == localStorage.getItem('userid')
+        convertMessageDate(msg)
+        return msg
+    })
+    messages.value.splice(0, messages.value.length, ...fresh)
+    await nextTick()
+    setTimeout(() => {
+        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
+    }, 120)
+}
+
+
 
 async function loadMoreMessages(index: any, done: any) {
     if (currentOffset < totalMessagesAmount) {
