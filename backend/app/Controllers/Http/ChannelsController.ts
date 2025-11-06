@@ -24,9 +24,9 @@ export default class ChannelsController {
         const channel = await Channel.findOrFail(params.channelId)
 
         if (channel.owner_id === user.id) {
-            return response.status(403).json({
-                error: 'Owner cannot leave their own channel. You can delete it instead.',
-            })
+            await channel.delete()
+            Ws.io.emit('channel_deleted', { channelId: channel.id })
+            return { message: 'Channel deleted because the owner left' }
         }
 
         const member = await ChannelMember

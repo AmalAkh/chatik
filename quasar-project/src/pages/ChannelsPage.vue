@@ -513,6 +513,19 @@ onMounted(async () => {
         })
     })
 
+    currentSocket.value.on('channel_deleted', (data: { channelId: number }) => {
+        channels.value = channels.value.filter(c => c.id !== data.channelId)
+
+        if (currentChannel.value?.id === data.channelId) {
+            currentChannel.value = undefined
+            messages.value = []
+            $q.notify({
+                type: 'warning',
+                message: 'Channel was deleted by owner',
+                position: 'top'
+            })
+        }
+    })
 
 
 
