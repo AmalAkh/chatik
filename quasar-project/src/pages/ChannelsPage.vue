@@ -32,7 +32,8 @@
                     <!-- channels list -->
                     <q-scroll-area class="channels-scrollable-area" style="height: 100%;">
                         <channel-item v-for="channel in sortedChannels" :key="channel.id"
-                            :last-message="channel.lastMessage" :name="channel.name"
+                            :last-message="channel.lastMessage"
+                            :name="channel.isPrivate ? channel.name + ' 🔒' : channel.name"
                             :class="{ selected: channel.id == currentChannel?.id }" @click="openChannel(channel)" />
                     </q-scroll-area>
                 </div>
@@ -128,9 +129,11 @@
                 </q-card-section>
 
                 <q-card-actions align="right">
-                    <q-btn flat label="Add user" color="primary" @click="showInviteDialog = true" />
+                    <q-btn v-if="!currentChannel?.isPrivate || currentChannel?.ownerId === myId" flat label="Add user"
+                        color="primary" @click="showInviteDialog = true" />
                     <q-btn flat label="Close" color="primary" v-close-popup />
                 </q-card-actions>
+
             </q-card>
         </q-dialog>
 
@@ -188,6 +191,8 @@ const $q = useQuasar()
 const router = useRouter()
 
 const userStatus = ref('online')
+
+const myId = Number(localStorage.getItem('userid'))
 
 async function updateStatus() {
     try {
@@ -485,6 +490,44 @@ onMounted(async () => {
         const member = channelMembers.value.find(m => m.id === data.userId)
         if (member) member.status = data.status
     })
+
+    currentSocket.value.on('invited_to_channel', (channel: any) => {
+        channels.value = channels.value.filter(c => c.id !== channel.id)
+
+        channels.value.unshift({
+            ...channel,
+            isPrivate: channel.isPrivate ?? false,
+            ownerId: channel.ownerId ?? 0,
+            lastMessage: channel.lastMessage
+                ? {
+                    ...channel.lastMessage,
+                    date: new Date(channel.lastMessage.date),
+                }
+                : null,
+        })
+
+        $q.notify({
+            type: 'info',
+            message: `You were added to channel "${channel.name}"`,
+            position: 'top',
+        })
+    })
+
+    currentSocket.value.on('channel_deleted', (data: { channelId: number }) => {
+        channels.value = channels.value.filter(c => c.id !== data.channelId)
+
+        if (currentChannel.value?.id === data.channelId) {
+            currentChannel.value = undefined
+            messages.value = []
+            $q.notify({
+                type: 'warning',
+                message: 'Channel was deleted by owner',
+                position: 'top'
+            })
+        }
+    })
+
+
 
 })
 

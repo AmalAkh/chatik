@@ -4,7 +4,7 @@
 
 * [x] User registration
 * [x] User login
-* [ ] User logout
+* [x] User logout
 * [x] User has:
 
   * [x] first name and last name
@@ -17,12 +17,12 @@
 
 * [x] User can see the list of channels they are a member of
 * [x] When leaving or being removed from a channel, it is removed from the list
-* [ ] When invited to a channel, the channel is highlighted and pinned to the top
+* [x] When invited to a channel, the channel is highlighted and pinned to the top
 * [x] Through the UI, the user can:
 
   * [x] create a channel
   * [x] leave a channel
-  * [ ] delete a channel if they are an admin
+  * [x] delete a channel if they are an admin
 
 ### Channel Types
 

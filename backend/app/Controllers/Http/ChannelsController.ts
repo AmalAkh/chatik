@@ -1,6 +1,7 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Channel from 'App/Models/Channel'
 import ChannelMember from 'App/Models/ChannelMember'
+import Ws from 'App/Services/Ws'
 
 export default class ChannelsController {
     public async index({ auth }: HttpContextContract) {
@@ -23,9 +24,9 @@ export default class ChannelsController {
         const channel = await Channel.findOrFail(params.channelId)
 
         if (channel.owner_id === user.id) {
-            return response.status(403).json({
-                error: 'Owner cannot leave their own channel. You can delete it instead.',
-            })
+            await channel.delete()
+            Ws.io.emit('channel_deleted', { channelId: channel.id })
+            return { message: 'Channel deleted because the owner left' }
         }
 
         const member = await ChannelMember
@@ -101,18 +102,31 @@ export default class ChannelsController {
     }
 
 
-    public async invite({ request, auth, params }: HttpContextContract) {
+    public async invite({ request, auth, params, response }: HttpContextContract) {
         const { userId } = request.only(['userId'])
-
         const user = auth.user!
-
         const channel = await Channel.findOrFail(params.channelId)
 
-        if (channel.owner_id !== user.id) {
-            return { error: 'You are not the owner of the channel' }
+        if (channel.is_private && channel.owner_id !== user.id) {
+            return response.status(403).json({
+                error: 'Only the owner can invite members to a private channel',
+            })
         }
 
-        const existingMember = await ChannelMember.query()
+        const member = await ChannelMember
+            .query()
+            .where('channelId', channel.id)
+            .where('userId', user.id)
+            .first()
+
+        if (!member) {
+            return response.status(403).json({
+                error: 'You are not a member of this channel',
+            })
+        }
+
+        const existingMember = await ChannelMember
+            .query()
             .where('channelId', channel.id)
             .where('userId', userId)
             .first()
@@ -123,11 +137,24 @@ export default class ChannelsController {
 
         const newMember = await ChannelMember.create({
             channelId: channel.id,
-            userId
+            userId,
+        })
+
+        Ws.io.to(`user:${userId}`).emit('invited_to_channel', {
+            id: channel.id,
+            name: channel.name,
+            isPrivate: channel.is_private,
+            ownerId: channel.owner_id,
+            lastMessage: await channel
+                .related('lastMessage')
+                .query()
+                .preload('sender', q => q.select(['nickname']))
+                .first(),
         })
 
         return { message: 'User added to the channel', member: newMember }
     }
+
 
     public async kick({ request, auth, params }: HttpContextContract) {
         const { userId } = request.only(['userId'])
