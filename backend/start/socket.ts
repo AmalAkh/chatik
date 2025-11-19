@@ -65,4 +65,22 @@ Ws.io.on('connection', async (socket) => {
       }
     }
   })
+  socket.on("typing", async (msg:{channelId:number, text:string})=>
+  {
+    const members = await ChannelMember
+      .query()
+      .where('channel_id', msg.channelId)
+      .preload('user')
+
+    for (const member of members) {
+      const targetUser = member.user
+      if (!targetUser) continue
+      if (targetUser.status === 'offline') continue
+      if (targetUser.id !== user.id) {
+        Ws.io.to(`user:${targetUser.id}`).emit('typing', {...msg, user:{nickname:user.nickname}})
+        
+      }
+    }
+  })
 })
+

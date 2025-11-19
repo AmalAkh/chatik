@@ -43,13 +43,22 @@
             <template v-slot:after>
                 <div class="flex full-height chat-view">
                     <div class="chat-top-area">
+                        
                         <q-btn class="back-button" v-show="splitterDisabled" flat round color="primary" size="md"
                             icon="arrow_back" @click="splitterModel = 100" />
                         <img class="q-message-avatar q-message-avatar--sent"
                             src="https://cdn.quasar.dev/img/avatar4.jpg" aria-hidden="true" />
-                        <p>{{ currentChannel?.name }}</p>
+                        <div class="channel-title">
+                            <p>{{ currentChannel?.name }}</p>
+                            <div class="typing-users-area"  v-show="isAnybodyTyping">
+                                <p class="typing-user fk">Typing:</p>
+                                <p class="typing-user"  v-for="(user, index) in typingUsers[currentChannel?.id!]" @click="showRealtimeTypingDialog(index)" :key="index">{{ index }}</p>
+                                
+                            </div>
+                        </div>
                         <q-btn outline round color="primary" size="md" icon="info"
                             @click="() => { showMembersDialog = true; loadChannelMembers(); }" />
+                        
                     </div>
 
                     <!-- chat messages -->
@@ -71,7 +80,7 @@
                     <!-- input area -->
                     <div class="bottom-message-area flex">
                         <q-btn flat round color="primary" icon="attach_file" />
-                        <q-input class="new-message-input" filled v-model="newMessage" placeholder="Message" />
+                        <q-input class="new-message-input" filled v-model="newMessage" @update:model-value="typingMessage" placeholder="Message" />
                         <q-btn flat round color="primary" icon="send" @click="sendMessage" />
                     </div>
                 </div>
@@ -174,10 +183,24 @@
             </q-card>
         </q-dialog>
     </q-page>
+
+    <q-dialog v-model="showRealtimeTyping">
+      <q-card class="real-typing-card">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">{{ selectedUserToView }} is typing:</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <q-card-section>
+          {{ realTimeTypedMessage }}
+        </q-card-section>
+      </q-card>
+    </q-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, computed } from 'vue'
+import { ref, onMounted, nextTick, computed, reactive } from 'vue'
 import ChannelItem from 'src/components/ChannelItem.vue'
 import { api } from 'boot/axios'
 import { io } from "socket.io-client";
@@ -484,38 +507,39 @@ onMounted(async () => {
                 position: 'top-right'
             })
         }
-    })
 
+    })
+    
     currentSocket.value.on("user_status_changed", (data: { userId: number, status: UserStatus }) => {
         const member = channelMembers.value.find(m => m.id === data.userId)
         if (member) member.status = data.status
     })
-
+    
     currentSocket.value.on('invited_to_channel', (channel: any) => {
         channels.value = channels.value.filter(c => c.id !== channel.id)
-
+        
         channels.value.unshift({
             ...channel,
             isPrivate: channel.isPrivate ?? false,
             ownerId: channel.ownerId ?? 0,
             lastMessage: channel.lastMessage
-                ? {
-                    ...channel.lastMessage,
-                    date: new Date(channel.lastMessage.date),
-                }
-                : null,
+            ? {
+                ...channel.lastMessage,
+                date: new Date(channel.lastMessage.date),
+            }
+            : null,
         })
-
+        
         $q.notify({
             type: 'info',
             message: `You were added to channel "${channel.name}"`,
             position: 'top',
         })
     })
-
+    
     currentSocket.value.on('channel_deleted', (data: { channelId: number }) => {
         channels.value = channels.value.filter(c => c.id !== data.channelId)
-
+        
         if (currentChannel.value?.id === data.channelId) {
             currentChannel.value = undefined
             messages.value = []
@@ -526,8 +550,34 @@ onMounted(async () => {
             })
         }
     })
+    
+    currentSocket.value.on("typing", (msg:{channelId:number, text:string, user:{nickname:string}})=>
+    {
+        const { channelId, text, user } = msg
+        const nickname = user.nickname
 
+        // Ensure the channel exists as a reactive object
+        if (!typingUsers[channelId]) {
+                // Important: use Vue.set or assign reactive object
+                typingUsers[channelId] = reactive({})
+            }
 
+      
+        if(text.trim() == '')
+        {
+            delete typingUsers[channelId][nickname];
+            
+            
+        }else
+        {
+            typingUsers[channelId][nickname] = text
+        }
+        
+        
+        
+        
+    });
+    
 
 })
 
@@ -625,6 +675,42 @@ async function sendMessage() {
         showError(err)
     }
 }
+const isAnybodyTyping = computed(()=>
+{
+    if(!currentChannel.value)
+    {
+        return false;
+    }
+    if(!typingUsers[currentChannel?.value.id])
+    {
+        return false;
+    }
+    return Object.keys(typingUsers[currentChannel?.value.id]!).length > 0;
+})
+
+const realTimeTypedMessage = computed(()=>
+{
+    const channelId = currentChannel.value?.id;
+    const userId = selectedUserToView.value;
+    console.log(userId);
+    if (!channelId || !userId) return "";
+
+    return typingUsers[channelId]?.[userId] ?? "";
+})
+const typingUsers = reactive<Record<number, Record<string, string>>>({});
+const showRealtimeTyping = ref(false);
+const selectedUserToView = ref<string>();
+
+function showRealtimeTypingDialog(userId: string) {
+   selectedUserToView.value = userId.toString();
+   showRealtimeTyping.value = true;
+}
+
+function typingMessage(value:any){
+
+    currentSocket.value.emit("typing", {channelId:currentChannel.value?.id, text:value});
+
+}
 </script>
 
 <style lang="scss">
@@ -652,6 +738,43 @@ async function sendMessage() {
     p {
         margin-left: 10px;
         flex: auto;
+    }
+    .channel-title{
+        margin-left: 10px;
+        flex: auto;
+        .typing-users-area
+        {
+        display: flex;
+        }
+        .typing-user
+        {
+            font-size: 0.75rem;
+            color:gray;
+            font-weight: bold;
+            cursor: pointer;
+            margin-left: 2px;
+            flex:none;
+            &::after
+            {
+                content: ',';
+            }
+            &:first-child::after
+            {
+                content:'';
+            }
+            &:last-child::after
+            {
+                content:'';
+            }
+            
+            
+            &.fk
+            {
+                cursor: default;
+                margin-left: 10px;
+                font-weight: normal;
+            }
+        }
     }
 
     .q-btn {
@@ -689,14 +812,22 @@ async function sendMessage() {
 .back-button {
     display: none;
 }
+.real-typing-card
+{
+    width:40%
+}
 
 @media screen and (max-width:1024px) {
     .q-splitter--vertical>.q-splitter__separator>div {
         display: none;
     }
-
+    
     .back-button {
         display: inline-flex;
+    }
+    .real-typing-card
+    {
+        width:95%;
     }
 }
 </style>
