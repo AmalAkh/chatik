@@ -671,6 +671,7 @@ async function sendMessage() {
         currentSocket.value.emit("new_message", newMsg)
         chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
         newMessage.value = ""
+        typingMessage("");
     } catch (err) {
         showError(err)
     }
