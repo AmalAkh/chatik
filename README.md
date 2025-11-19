@@ -106,5 +106,5 @@
 
 ## Real-Time Typing
 
-* [ ] If a user has an active channel open, they can see who is currently typing
-* [ ] Clicking on a nickname shows the real-time text being typed (every change is visible)
+* [x] If a user has an active channel open, they can see who is currently typing
+* [x] Clicking on a nickname shows the real-time text being typed (every change is visible)
