@@ -1,0 +1,11 @@
+{
+  "short_name": "Chatik",
+  "name": "Chatik",
+  "icons": [
+   
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "black",
+  "background_color": "white"
+}

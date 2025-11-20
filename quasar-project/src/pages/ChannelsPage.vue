@@ -580,6 +580,11 @@ onMounted(async () => {
     
 
 })
+async function askNotificationPermission() 
+{ 
+    const permission = await Notification.requestPermission(); 
+    if (permission !== 'granted') { throw new Error('Notification permission denied'); } 
+}
 
 const messages = ref<ChannelMessage[]>([])
 let totalMessagesAmount = 0
@@ -669,7 +674,7 @@ async function sendMessage() {
         convertMessageDate(newMsg)
         messages.value?.push(newMsg as ChannelMessage)
         currentSocket.value.emit("new_message", newMsg)
-        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
+        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100);
         newMessage.value = ""
         typingMessage("");
     } catch (err) {
