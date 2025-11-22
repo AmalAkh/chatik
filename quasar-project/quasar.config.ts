@@ -42,6 +42,7 @@ export default defineConfig((/* ctx */) => {
         vueShim: true,
         // extendTsConfig (tsConfig) {}
       },
+     
 
       vueRouterMode: 'history', // available values: 'hash', 'history'
       // vueRouterBase,
@@ -149,7 +150,19 @@ export default defineConfig((/* ctx */) => {
 
     // https://v2.quasar.dev/quasar-cli-vite/developing-pwa/configuring-pwa
     pwa: {
-      workboxMode: 'GenerateSW', // 'GenerateSW' or 'InjectManifest'
+      workboxMode: 'InjectManifest', // 'GenerateSW' or 'InjectManifest'
+      extendInjectManifestOptions(config) {
+        config.swSrc = "custom-service-worker.ts"
+        config.globPatterns = ['**/*.{js,css,html,ico,png,svg}'];
+        config.additionalManifestEntries = [
+      {
+        url: '/index.html',
+        revision: Math.random().toString(32).slice(2), // any unique string
+      }]
+        return config
+      },
+      
+      
       // swFilename: 'sw.js',
       // manifestFilename: 'manifest.json',
       // extendManifestJson (json) {},
