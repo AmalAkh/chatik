@@ -221,10 +221,11 @@ const myId = Number(localStorage.getItem('userid'))
 async function updateStatus() {
     try {
         await api.put('/user/status', { status: userStatus.value }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
-
+        navigator.serviceWorker.controller?.postMessage({type:"user_status",data:userStatus.value});
         if (userStatus.value === 'offline') {
             offlineCutoff.value = new Date().toISOString()
             localStorage.setItem('offlineCutoff', offlineCutoff.value)
+           
             if (currentSocket.value?.connected) currentSocket.value.disconnect()
             return
         }
@@ -232,6 +233,8 @@ async function updateStatus() {
         if (userStatus.value === 'online') {
             offlineCutoff.value = null
             localStorage.removeItem('offlineCutoff')
+            
+
             if (!currentSocket.value?.connected) {
                 currentSocket.value.connect()
                 await new Promise(resolve => currentSocket.value.once('connect', resolve))
@@ -241,6 +244,7 @@ async function updateStatus() {
                 await reloadCurrentChannel()
             }
         }
+       
     } catch (err) {
         showError(err)
     }

@@ -25,8 +25,14 @@ self.addEventListener("push", (event:PushEvent) => {
     
     console.log('Push received:', event);
     const data = event?.data?.json();
+    if(userStatus == 'dnd' || userStatus == "offline")
+    {
+      return;
+    }
+    console.log(userStatus);
     if(isAppVisible)
     {
+      
       console.log("push");
       void self.clients.matchAll().then(clients => {
         clients.forEach(client => {
@@ -51,15 +57,20 @@ self.addEventListener("push", (event:PushEvent) => {
 })
 
 let isAppVisible = true;
-
+let userStatus = 'online'
 
 self.addEventListener("message", event => {
+
   const message = event.data;
   if(message.type == "app_visibility")
-    {
-      isAppVisible = message.data;
-      console.log("update:", isAppVisible);
-    }
+  {
+    isAppVisible = message.data;
+    console.log("update:", isAppVisible);
+  }else if(message.type == "user_status")
+  {
+    userStatus = message.data;
+    console.log(userStatus);
+  }
 });
 // Non-SSR fallbacks to index.html
 // Production SSR fallbacks to offline.html (except for dev)
