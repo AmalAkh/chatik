@@ -5,31 +5,35 @@ import Hash from '@ioc:Adonis/Core/Hash'
 export default class AuthController {
   // handle user registration
   public async register({ request, response }: HttpContextContract) {
-    // expected payload type
-    type UserPayload = {
-      first_name: string
-      last_name: string
-      nickname: string
-      email: string
-      password: string
-    }
-
-    // pick only required fields from request
     const data = request.only([
       'first_name',
       'last_name',
       'nickname',
       'email',
       'password'
-    ]) as UserPayload
+    ])
 
-    // hash plain password
+    // check if nickname exists
+    const existingNickname = await User.findBy('nickname', data.nickname)
+    if (existingNickname) {
+      return response.badRequest({
+        message: 'This nickname is already taken'
+      })
+    }
+
+    // check if email exists
+    const existingEmail = await User.findBy('email', data.email)
+    if (existingEmail) {
+      return response.badRequest({
+        message: 'This email is already registered'
+      })
+    }
+
+    // hash password
     data.password = await Hash.make(data.password)
 
-    // create user in DB
     const user = await User.create(data)
 
-    // return created user info (safe subset)
     return response.created({
       message: 'User registered successfully',
       user: {
@@ -39,6 +43,7 @@ export default class AuthController {
       }
     })
   }
+
 
   // handle user login
   public async login({ request, response, auth }: HttpContextContract) {
