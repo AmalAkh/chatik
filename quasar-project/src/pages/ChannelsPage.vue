@@ -447,7 +447,7 @@ onMounted(async () => {
                 messages.value.splice(0, messages.value.length, ...newMessages.data.messages)
                 await nextTick()
                 setTimeout(() => {
-                    chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
+                    chatMessagesScrollArea.value?.setScrollPercentage('vertical', 200)
                 }, 150)
             }
 
@@ -612,19 +612,39 @@ async function openChannel(channel: Channel) {
 
 async function sendMessage() {
     if (!currentChannel.value) return
+    if (!newMessage.value.trim()) return
+
     try {
-        const response = await api.post(`/messages/${currentChannel.value.id}`, { text: newMessage.value })
+        const response = await api.post(
+            `/messages/${currentChannel.value.id}`,
+            { text: newMessage.value.trim() }
+        )
+
         let newMsg = snakeToCamel(response.data)
         newMsg.local = true
         convertMessageDate(newMsg)
-        messages.value?.push(newMsg as ChannelMessage)
-        currentSocket.value.emit("new_message", newMsg)
-        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
+
+        messages.value.push(newMsg as ChannelMessage)
+
+        const ch = channels.value.find(c => c.id === currentChannel.value?.id)
+        if (ch) {
+            ch.lastMessage = newMsg
+        }
+
+        await nextTick()
+
+        setTimeout(() => {
+            chatMessagesScrollArea.value?.setScrollPercentage('vertical', 1)
+        }, 120)
+
+        currentSocket.value?.emit("new_message", newMsg)
+
         newMessage.value = ""
     } catch (err) {
         showError(err)
     }
 }
+
 </script>
 
 <style lang="scss">
