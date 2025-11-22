@@ -21,20 +21,46 @@ void precacheAndRoute(self.__WB_MANIFEST);
 void cleanupOutdatedCaches();
 
 self.addEventListener("push", (event:PushEvent) => {
-   
- console.log('Push received:', event);
-  const data = event?.data?.json();
-  const options = {
-    body:data.body,
-    icon:"./icons/favicon-96x96.png",
-    badge:"./icons/favicon-96x96.png",
-    data: "/" // Optional: URL to open on click
-  };
+    
+    
+    console.log('Push received:', event);
+    const data = event?.data?.json();
+    if(isAppVisible)
+    {
+      console.log("push");
+      void self.clients.matchAll().then(clients => {
+        clients.forEach(client => {
+          client.postMessage({ type: "notification", data: data});
+        });
+      });
+    }else
+    {
+      
+      const options = {
+        body:data.body,
+        icon:"./icons/favicon-96x96.png",
+        badge:"./icons/favicon-96x96.png",
+        data: "/" // Optional: URL to open on click
+      };
 
-  event.waitUntil(
-  self.registration.showNotification(data.title, options)
-  );
+      event.waitUntil(
+      self.registration.showNotification(data.title, options)
+      );
+    }
+    
 })
+
+let isAppVisible = true;
+
+
+self.addEventListener("message", event => {
+  const message = event.data;
+  if(message.type == "app_visibility")
+    {
+      isAppVisible = message.data;
+      console.log("update:", isAppVisible);
+    }
+});
 // Non-SSR fallbacks to index.html
 // Production SSR fallbacks to offline.html (except for dev)
 if (process.env.MODE !== 'ssr' || process.env.PROD) {
