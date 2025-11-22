@@ -577,7 +577,9 @@ onMounted(async () => {
         
         
     });
-    
+
+    await askNotificationPermission();
+    await subscribeUser();
 
 })
 async function askNotificationPermission() 
@@ -586,6 +588,38 @@ async function askNotificationPermission()
     if (permission !== 'granted') { throw new Error('Notification permission denied'); } 
 }
 
+const publicVapidKey = 'BLaWyas9eRqCcHTzs5k0UXySsPFZBjk5oXKjm70NmFxEcdyrxbIj2dRxgFdZxn7cMG9FmyOSKbnFvjtF9Yc3TK0';
+
+async function subscribeUser() {
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if(!subscription)
+    {
+        subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true, // Always show notifications
+            applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+        });
+        console.log('Push subscription:', subscription);
+
+        // Send subscription to your server
+        console.log(await api.post('/push/subscribe', {
+        
+            body: JSON.stringify(subscription),
+            headers: { 'Content-Type': 'application/json' },
+        }));
+    }
+    
+}
+
+// Helper to convert VAPID key
+function urlBase64ToUint8Array(base64String:string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  const rawData = atob(base64);
+  return new Uint8Array([...rawData].map(char => char.charCodeAt(0)));
+}
 const messages = ref<ChannelMessage[]>([])
 let totalMessagesAmount = 0
 let currentOffset = 20

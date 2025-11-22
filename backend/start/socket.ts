@@ -3,13 +3,36 @@ import User from 'App/Models/User';
 import HttpContext from '@ioc:Adonis/Core/HttpContext'
 import AuthManager from '@ioc:Adonis/Addons/Auth';
 import ChannelMember from 'App/Models/ChannelMember';
-
-
-
+import PushSubscription from 'App/Models/PushSubscription';
+import Channel from 'App/Models/Channel';
+const webpush = require('web-push');
+webpush.setVapidDetails(
+      process.env.PUSH_MAILTO,
+      process.env.VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+    );
 class SocketIOData {
   user: User
   public constructor(user: User) {
     this.user = user;
+  }
+}
+
+class WebPushWrapper
+{
+  static async sendPush(subscription:{endpoint:string, keys:{p256dh:string, auth:string}}, title:string, body:string, subDBObject:PushSubscription)
+  {
+    try
+    {
+      
+      const payload = JSON.stringify({ title: title, body:body , url: '/' });
+
+      await webpush.sendNotification(subscription, payload)
+    }catch(err:any)
+    {
+      
+      await subDBObject.delete();
+    }
   }
 }
 
@@ -57,13 +80,25 @@ Ws.io.on('connection', async (socket) => {
       .query()
       .where('channel_id', msg.channelId)
       .preload('user')
-
+    console.log(msg.channelId);
+    const channel = await Channel.findOrFail(msg.channelId);
+   
     for (const member of members) {
       const targetUser = member.user
       if (!targetUser) continue
       if (targetUser.status === 'offline') continue
       if (targetUser.id !== user.id) {
         Ws.io.to(`user:${targetUser.id}`).emit('new_message', msg)
+        
+        const subObjs = (await PushSubscription.query().where("user_id", targetUser.id).select());
+      
+        for(let subObj of subObjs)
+        {
+          
+          const subscription = {endpoint:subObj.endPoint, keys:{p256dh:subObj.p256dh, auth:subObj.auth}};
+          await WebPushWrapper.sendPush(subscription, `${channel.name}`, `${user.nickname}: ${msg.text}`, subObj);
+      
+        }
       }
     }
   })

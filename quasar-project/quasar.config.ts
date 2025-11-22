@@ -155,10 +155,10 @@ export default defineConfig((/* ctx */) => {
         config.swSrc = "custom-service-worker.ts"
         config.globPatterns = ['**/*.{js,css,html,ico,png,svg}'];
         config.additionalManifestEntries = [
-      {
-        url: '/index.html',
-        revision: Math.random().toString(32).slice(2), // any unique string
-      }]
+        {
+          url: '/index.html',
+          revision: Math.random().toString(32).slice(2), // any unique string
+        }]
         return config
       },
       

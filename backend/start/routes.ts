@@ -24,4 +24,12 @@ Route.group(() => {
   
 }).prefix('/messages').middleware('auth')
 
+
+Route.group(() => {
+  Route.post('/subscribe', 'PushController.subscribe'),
+  Route.post('/test', 'PushController.test')
+
+  
+}).prefix('/push').middleware('auth')
+
 Route.get('/users/by-nickname/:nickname', 'UsersController.byNickname').middleware('auth')

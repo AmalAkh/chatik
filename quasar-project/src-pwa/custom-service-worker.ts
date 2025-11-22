@@ -23,15 +23,16 @@ void cleanupOutdatedCaches();
 self.addEventListener("push", (event:PushEvent) => {
    
  console.log('Push received:', event);
-
+  const data = event?.data?.json();
   const options = {
-    body: "test",
-    icon:"./images/badge-icon.png",
+    body:data.body,
+    icon:"./icons/favicon-96x96.png",
+    badge:"./icons/favicon-96x96.png",
     data: "/" // Optional: URL to open on click
   };
 
   event.waitUntil(
-  self.registration.showNotification("title", options)
+  self.registration.showNotification(data.title, options)
   );
 })
 // Non-SSR fallbacks to index.html
