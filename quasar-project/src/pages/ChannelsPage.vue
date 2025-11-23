@@ -760,7 +760,7 @@ async function handleCommand(input: string) {
             // /join channelName [private]
             case '/join': {
                 const name = args[0]
-                const isPriv = args[1] === 'private'
+                const isPriv = args[1] === '[private]'
 
                 if (!name) {
                     $q.notify({ type: 'warning', message: 'Usage: /join channelName [private]' })
