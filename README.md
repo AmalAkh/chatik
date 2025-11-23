@@ -32,8 +32,8 @@
 ### Channel Administrator
 
 * [x] The creator of the channel becomes its admin
-* [ ] Admin can delete the channel using `/quit`
-* [ ] If the admin leaves the channel using `/cancel`, the channel is deleted
+* [x] Admin can delete the channel using `/quit`
+* [x] If the admin leaves the channel using `/cancel`, the channel is deleted
 
 ### Inactive Channels
 
@@ -47,16 +47,16 @@
 * [ ] A channel can be created using `/join channelName [private]`
 * [ ] For private channels:
 
-  * [ ] Invite a user with `/invite nickName` (admin only)
-  * [ ] Remove a user with `/revoke nickName` (admin only)
+  * [x] Invite a user with `/invite nickName` (admin only)
+  * [] Remove a user with `/revoke nickName` (admin only)
 * [ ] For public channels:
 
-  * [ ] Join using `/join channelName` (automatically creates the channel if it doesn’t exist)
-  * [ ] Invite another user using `/invite nickName`
-  * [ ] Kick a member using `/kick nickName`
+  * [x] Join using `/join channelName` (automatically creates the channel if it doesn’t exist)
+  * [x] Invite another user using `/invite nickName`
+  * [x] Kick a member using `/kick nickName`
 * [ ] If three members use `/kick nickName`, the user gets a permanent ban
 * [ ] Admin can kick or unban a user at any time
-* [ ] A user can leave a channel with `/cancel`
+* [x] A user can leave a channel with `/cancel`
 
 ---
 
@@ -99,7 +99,7 @@
 
 ## Channel Members
 
-* [ ] User can view the list of members with `/list`
+* [x] User can view the list of members with `/list`
 * [x] If the user is a member, they can see other members
 
 ---
