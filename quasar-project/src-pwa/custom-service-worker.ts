@@ -27,21 +27,23 @@ self.addEventListener("push", (event:PushEvent) => {
     const data = event?.data?.json();
     if(userStatus == 'dnd' || userStatus == "offline")
     {
+      console.log("Push wont be shown - users status");
+
       return;
     }
     console.log(userStatus);
     if(isAppVisible)
     {
       
-      console.log("push");
+      
       void self.clients.matchAll().then(clients => {
         clients.forEach(client => {
           client.postMessage({ type: "notification", data: data});
         });
       });
     }else
-    {
-      
+    { 
+      console.log("Push is to be shown");
       const options = {
         body:data.body,
         icon:"./icons/favicon-96x96.png",
@@ -65,11 +67,11 @@ self.addEventListener("message", event => {
   if(message.type == "app_visibility")
   {
     isAppVisible = message.data;
-    console.log("update:", isAppVisible);
+    
   }else if(message.type == "user_status")
   {
     userStatus = message.data;
-    console.log(userStatus);
+   
   }
 });
 // Non-SSR fallbacks to index.html

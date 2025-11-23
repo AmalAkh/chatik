@@ -72,7 +72,7 @@
                             </template>
                             <q-chat-message v-for="message in messages" :name="message.sender?.nickname || 'User'"
                                 avatar="https://cdn.quasar.dev/img/avatar4.jpg" :text="[message.text]"
-                                :sent="message.local" :key="message.id.toString() + message.userId.toString()"
+                                :sent="message.local" :key="message.id.toString()"
                                 :stamp="message.date.toString()" />
                         </q-infinite-scroll>
                     </q-scroll-area>
@@ -206,7 +206,9 @@ import { api } from 'boot/axios'
 import { io } from "socket.io-client";
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar'
+import { urlBase64ToUint8Array } from 'src/utils/util-functions';
 import type { Channel, ChannelMessage, User, UserStatus } from 'src/models';
+import { PushNotificationsManager } from 'src/utils/PushNotificationsManager';
 
 
 const offlineCutoff = ref<string | null>(localStorage.getItem('offlineCutoff') || null)
@@ -584,9 +586,13 @@ onMounted(async () => {
         
         
     });
-
+    const res = await api.get(`/user/mynickname`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+    navigator.serviceWorker.controller?.postMessage({type:"nickname", data:res.data});
+    console.log(res.data);
     await askNotificationPermission();
-    await subscribeUser();
+    await PushNotificationsManager.subscribeUser();
 
 })
 async function askNotificationPermission() 
@@ -595,38 +601,7 @@ async function askNotificationPermission()
     if (permission !== 'granted') { throw new Error('Notification permission denied'); } 
 }
 
-const publicVapidKey = 'BLaWyas9eRqCcHTzs5k0UXySsPFZBjk5oXKjm70NmFxEcdyrxbIj2dRxgFdZxn7cMG9FmyOSKbnFvjtF9Yc3TK0';
 
-async function subscribeUser() {
-    const registration = await navigator.serviceWorker.ready;
-    let subscription = await registration.pushManager.getSubscription();
-    if(!subscription)
-    {
-        subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true, // Always show notifications
-            applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
-        });
-        console.log('Push subscription:', subscription);
-
-        // Send subscription to your server
-        console.log(await api.post('/push/subscribe', {
-        
-            body: JSON.stringify(subscription),
-            headers: { 'Content-Type': 'application/json' },
-        }));
-    }
-    
-}
-
-// Helper to convert VAPID key
-function urlBase64ToUint8Array(base64String:string) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-  const rawData = atob(base64);
-  return new Uint8Array([...rawData].map(char => char.charCodeAt(0)));
-}
 const messages = ref<ChannelMessage[]>([])
 let totalMessagesAmount = 0
 let currentOffset = 20
@@ -662,7 +637,8 @@ async function reloadCurrentChannel() {
         convertMessageDate(msg)
         return msg
     })
-    messages.value.splice(0, messages.value.length, ...fresh)
+    console.log(fresh);
+    messages.value = fresh;
     await nextTick()
     setTimeout(() => {
         chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)

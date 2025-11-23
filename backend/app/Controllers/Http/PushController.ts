@@ -20,6 +20,18 @@ export default class PushController {
     await PushSubscription.create({userId:user.id, endPoint:body.endpoint, p256dh:body.keys.p256dh, auth:body.keys.auth});
 
   }
+  public async unsubscribe({ auth, request, response }: HttpContextContract) {
+
+    
+    const user = auth.user!
+
+    const body = JSON.parse(request.body().body);
+    const subscription = await PushSubscription.findBy("end_point",body.endpoint)
+    await subscription?.delete();
+
+    
+
+  }
   
   public async test({ auth, request, response }: HttpContextContract) {
     const user = auth.user!
