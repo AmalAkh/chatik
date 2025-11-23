@@ -39,6 +39,11 @@ Ws.io.use(async (socket, next) => {
 })
 
 Ws.io.on('connection', async (socket) => {
+  socket.on('join_channel', ({ channelId }) => {
+    if (!channelId) return
+    socket.join(`channel:${channelId}`)
+  })
+
   const user = socket.data.user
   if (!user) return
 
@@ -65,8 +70,7 @@ Ws.io.on('connection', async (socket) => {
       }
     }
   })
-  socket.on("typing", async (msg:{channelId:number, text:string})=>
-  {
+  socket.on("typing", async (msg: { channelId: number, text: string }) => {
     const members = await ChannelMember
       .query()
       .where('channel_id', msg.channelId)
@@ -77,8 +81,8 @@ Ws.io.on('connection', async (socket) => {
       if (!targetUser) continue
       if (targetUser.status === 'offline') continue
       if (targetUser.id !== user.id) {
-        Ws.io.to(`user:${targetUser.id}`).emit('typing', {...msg, user:{nickname:user.nickname}})
-        
+        Ws.io.to(`user:${targetUser.id}`).emit('typing', { ...msg, user: { nickname: user.nickname } })
+
       }
     }
   })
