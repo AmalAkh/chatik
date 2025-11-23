@@ -43,6 +43,10 @@ self.addEventListener("push", (event:PushEvent) => {
       });
     }else
     { 
+      if(onlyPersonalMessages && !data.body.includes(`@${nickname}`))
+      {
+        return; 
+      }
       console.log("Push is to be shown");
       const options = {
         body:data.body,
@@ -59,7 +63,9 @@ self.addEventListener("push", (event:PushEvent) => {
 })
 
 let isAppVisible = true;
-let userStatus = 'online'
+let userStatus = 'online';
+let onlyPersonalMessages = false;
+let nickname = "";
 
 self.addEventListener("message", event => {
 
@@ -72,6 +78,16 @@ self.addEventListener("message", event => {
   {
     userStatus = message.data;
    
+  }
+  else if(message.type == "only_personal_messages")
+  {
+    onlyPersonalMessages = message.data;
+   
+  }
+  else if(message.type == "user_nickname")
+  {
+    nickname = message.data;
+    console.log(nickname);
   }
 });
 // Non-SSR fallbacks to index.html

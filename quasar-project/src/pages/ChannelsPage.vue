@@ -589,8 +589,8 @@ onMounted(async () => {
     const res = await api.get(`/user/mynickname`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     })
-    navigator.serviceWorker.controller?.postMessage({type:"nickname", data:res.data});
-    console.log(res.data);
+    navigator.serviceWorker.controller?.postMessage({type:"user_nickname", data:res.data});
+   
     await askNotificationPermission();
     await PushNotificationsManager.subscribeUser();
 
