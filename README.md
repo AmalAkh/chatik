@@ -44,12 +44,12 @@
 
 ## Command Line
 
-* [ ] A channel can be created using `/join channelName [private]`
+* [x] A channel can be created using `/join channelName [private]`
 * [ ] For private channels:
 
   * [x] Invite a user with `/invite nickName` (admin only)
-  * [] Remove a user with `/revoke nickName` (admin only)
-* [ ] For public channels:
+  * [ ] Remove a user with `/revoke nickName` (admin only)
+* [x] For public channels:
 
   * [x] Join using `/join channelName` (automatically creates the channel if it doesn’t exist)
   * [x] Invite another user using `/invite nickName`
@@ -108,3 +108,4 @@
 
 * [x] If a user has an active channel open, they can see who is currently typing
 * [x] Clicking on a nickname shows the real-time text being typed (every change is visible)
+
