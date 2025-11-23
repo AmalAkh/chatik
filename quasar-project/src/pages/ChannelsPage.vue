@@ -43,22 +43,23 @@
             <template v-slot:after>
                 <div class="flex full-height chat-view">
                     <div class="chat-top-area">
-                        
+
                         <q-btn class="back-button" v-show="splitterDisabled" flat round color="primary" size="md"
                             icon="arrow_back" @click="splitterModel = 100" />
                         <img class="q-message-avatar q-message-avatar--sent"
                             src="https://cdn.quasar.dev/img/avatar4.jpg" aria-hidden="true" />
                         <div class="channel-title">
                             <p>{{ currentChannel?.name }}</p>
-                            <div class="typing-users-area"  v-show="isAnybodyTyping">
+                            <div class="typing-users-area" v-show="isAnybodyTyping">
                                 <p class="typing-user fk">Typing:</p>
-                                <p class="typing-user"  v-for="(user, index) in typingUsers[currentChannel?.id!]" @click="showRealtimeTypingDialog(index)" :key="index">{{ index }}</p>
-                                
+                                <p class="typing-user" v-for="(user, index) in typingUsers[currentChannel?.id!]"
+                                    @click="showRealtimeTypingDialog(index)" :key="index">{{ index }}</p>
+
                             </div>
                         </div>
                         <q-btn outline round color="primary" size="md" icon="info"
                             @click="() => { showMembersDialog = true; loadChannelMembers(); }" />
-                        
+
                     </div>
 
                     <!-- chat messages -->
@@ -80,7 +81,8 @@
                     <!-- input area -->
                     <div class="bottom-message-area flex">
                         <q-btn flat round color="primary" icon="attach_file" />
-                        <q-input class="new-message-input" filled v-model="newMessage" @update:model-value="typingMessage" placeholder="Message" />
+                        <q-input class="new-message-input" filled v-model="newMessage"
+                            @update:model-value="typingMessage" placeholder="Message" />
                         <q-btn flat round color="primary" icon="send" @click="sendMessage" />
                     </div>
                 </div>
@@ -185,17 +187,17 @@
     </q-page>
 
     <q-dialog v-model="showRealtimeTyping">
-      <q-card class="real-typing-card">
-        <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">{{ selectedUserToView }} is typing:</div>
-          <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
-        </q-card-section>
+        <q-card class="real-typing-card">
+            <q-card-section class="row items-center q-pb-none">
+                <div class="text-h6">{{ selectedUserToView }} is typing:</div>
+                <q-space />
+                <q-btn icon="close" flat round dense v-close-popup />
+            </q-card-section>
 
-        <q-card-section>
-          {{ realTimeTypedMessage }}
-        </q-card-section>
-      </q-card>
+            <q-card-section>
+                {{ realTimeTypedMessage }}
+            </q-card-section>
+        </q-card>
     </q-dialog>
 </template>
 
@@ -250,31 +252,68 @@ async function updateStatus() {
 
 
 // Notify helpers
-function showError(error: any) {
-    console.error('API Error:', error)
-    let message = 'Unknown error occurred'
+function showError(err: any) {
+    console.error('API ERROR:', err)
 
-    if (error?.response?.data?.error) message = error.response.data.error
-    else if (error?.response?.data?.message) message = error.response.data.message
-    else if (error?.message) message = error.message
+    const status = err?.response?.status
+    const backendMessage =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Unknown error'
+
+    if (status === 401) {
+        if (backendMessage === 'Invalid credentials' || backendMessage === 'E_INVALID_AUTH_UID') {
+            void router.push('/auth/login')
+            return
+        }
+
+        $q.notify({
+            type: 'negative',
+            message: backendMessage || 'Unauthorized (401)',
+            position: 'top',
+        })
+        return
+    }
+
+    if (status === 403) {
+        $q.notify({
+            type: 'warning',
+            message: backendMessage || 'Forbidden (403)',
+            position: 'top',
+        })
+        return
+    }
+
+
+    if (status === 404) {
+        $q.notify({
+            type: 'warning',
+            message: backendMessage || 'Not found (404)',
+            position: 'top',
+        })
+        return
+    }
+
 
     $q.notify({
         type: 'negative',
-        message,
+        message: backendMessage,
         position: 'top',
-        timeout: 4000,
-        progress: true
     })
 }
 
-function showSuccess(message: string) {
+
+
+function showSuccess(message?: string) {
     $q.notify({
         type: 'positive',
-        message: 'Channel created successfully!',
+        message: message || 'Success',
         position: 'top',
+        timeout: 3000
     })
-
 }
+
 
 const splitterModel = ref(25)
 const splitterDisabled = ref(false)
@@ -328,7 +367,7 @@ async function leaveChannel() {
             { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
         )
 
-        showSuccess(res.data.message || 'You left the channel')
+        showSuccess(res.data.message)
 
         channels.value = channels.value.filter(c => c.id !== currentChannel.value?.id)
         currentChannel.value = undefined
@@ -442,7 +481,7 @@ async function createChannel() {
             { name: channelName.value, isPrivate: isPrivate.value },
             { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
         )
-        showSuccess(res.data.message || 'Channel created')
+        showSuccess(res.data.message)
         channelName.value = ""
         isPrivate.value = false
         showCreateDialog.value = false
@@ -509,37 +548,37 @@ onMounted(async () => {
         }
 
     })
-    
+
     currentSocket.value.on("user_status_changed", (data: { userId: number, status: UserStatus }) => {
         const member = channelMembers.value.find(m => m.id === data.userId)
         if (member) member.status = data.status
     })
-    
+
     currentSocket.value.on('invited_to_channel', (channel: any) => {
         channels.value = channels.value.filter(c => c.id !== channel.id)
-        
+
         channels.value.unshift({
             ...channel,
             isPrivate: channel.isPrivate ?? false,
             ownerId: channel.ownerId ?? 0,
             lastMessage: channel.lastMessage
-            ? {
-                ...channel.lastMessage,
-                date: new Date(channel.lastMessage.date),
-            }
-            : null,
+                ? {
+                    ...channel.lastMessage,
+                    date: new Date(channel.lastMessage.date),
+                }
+                : null,
         })
-        
+
         $q.notify({
             type: 'info',
             message: `You were added to channel "${channel.name}"`,
             position: 'top',
         })
     })
-    
-    currentSocket.value.on('channel_deleted', (data: { channelId: number }) => {
+
+    currentSocket.value.on('channel_deleted', async (data: { channelId: number }) => {
         channels.value = channels.value.filter(c => c.id !== data.channelId)
-        
+
         if (currentChannel.value?.id === data.channelId) {
             currentChannel.value = undefined
             messages.value = []
@@ -549,35 +588,33 @@ onMounted(async () => {
                 position: 'top'
             })
         }
+        await loadChannels()
     })
-    
-    currentSocket.value.on("typing", (msg:{channelId:number, text:string, user:{nickname:string}})=>
-    {
+
+    currentSocket.value.on("typing", (msg: { channelId: number, text: string, user: { nickname: string } }) => {
         const { channelId, text, user } = msg
         const nickname = user.nickname
 
         // Ensure the channel exists as a reactive object
         if (!typingUsers[channelId]) {
-                // Important: use Vue.set or assign reactive object
-                typingUsers[channelId] = reactive({})
-            }
+            // Important: use Vue.set or assign reactive object
+            typingUsers[channelId] = reactive({})
+        }
 
-      
-        if(text.trim() == '')
-        {
+
+        if (text.trim() == '') {
             delete typingUsers[channelId][nickname];
-            
-            
-        }else
-        {
+
+
+        } else {
             typingUsers[channelId][nickname] = text
         }
-        
-        
-        
-        
+
+
+
+
     });
-    
+
 
 })
 
@@ -649,6 +686,7 @@ async function openChannel(channel: Channel) {
     totalMessagesAmount = 0
     currentOffset = 20
     currentChannel.value = channel
+    currentSocket.value.emit("join_channel", { channelId: channel.id })
     await loadMessages()
     await nextTick()
     setTimeout(() => {
@@ -663,6 +701,16 @@ async function openChannel(channel: Channel) {
 async function sendMessage() {
     if (!currentChannel.value) return
     if (!newMessage.value.trim()) return
+
+    const text = newMessage.value.trim()
+    if (!text) return
+
+    if (text.startsWith('/')) {
+        await handleCommand(text)
+        newMessage.value = ''
+        typingMessage('')
+        return
+    }
 
     try {
         const response = await api.post(
@@ -695,21 +743,156 @@ async function sendMessage() {
         showError(err)
     }
 }
-const isAnybodyTyping = computed(()=>
-{
-    if(!currentChannel.value)
-    {
+
+async function handleCommand(input: string) {
+    const parts = input.trim().split(/\s+/)
+    const cmd = parts[0]
+    const args = parts.slice(1)
+
+    try {
+        switch (cmd) {
+            // /join channelName [private]
+            case '/join': {
+                const name = args[0]
+                const isPriv = args[1] === 'private'
+
+                if (!name) {
+                    $q.notify({ type: 'warning', message: 'Usage: /join channelName [private]' })
+                    break
+                }
+
+                const existing = channels.value.find(c => c.name === name)
+
+                if (existing) {
+                    await openChannel(existing)
+                    break
+                }
+
+                channelName.value = name
+                isPrivate.value = isPriv
+                await createChannel()
+
+                const created = channels.value.find(c => c.name === name)
+                if (created) {
+                    await openChannel(created)
+                }
+                break
+            }
+
+            // /invite nickName
+            case '/invite': {
+                if (!currentChannel.value) {
+                    $q.notify({ type: 'warning', message: 'No active channel selected' })
+                    break
+                }
+
+                const nick = args[0]
+                if (!nick) {
+                    $q.notify({ type: 'warning', message: 'Usage: /invite nickName' })
+                    break
+                }
+
+                inviteNickname.value = nick
+                await inviteUser()
+                break
+            }
+
+            // /kick nickName
+            case '/kick': {
+                if (!currentChannel.value) {
+                    $q.notify({ type: 'warning', message: 'No active channel selected' })
+                    break
+                }
+
+                const nick = args[0]
+                if (!nick) {
+                    $q.notify({ type: 'warning', message: 'Usage: /kick nickName' })
+                    break
+                }
+
+                if (!channelMembers.value.length) {
+                    await loadChannelMembers()
+                }
+
+                const member = channelMembers.value.find(m => m.nickname === nick)
+                if (!member) {
+                    $q.notify({ type: 'warning', message: `User ${nick} is not in this channel` })
+                    break
+                }
+
+                await kickMember(member.id)
+                break
+            }
+
+            // /cancel
+            case '/cancel': {
+                if (!currentChannel.value) {
+                    $q.notify({ type: 'warning', message: 'No active channel selected' })
+                    break
+                }
+                await leaveChannel()
+                break
+            }
+
+            // /list
+            case '/list': {
+                if (!currentChannel.value) {
+                    $q.notify({ type: 'warning', message: 'No active channel selected' })
+                    break
+                }
+                await loadChannelMembers()
+                showMembersDialog.value = true
+                break
+            }
+
+            // /quit
+            case '/quit': {
+                if (!currentChannel.value) {
+                    $q.notify({ type: 'warning', message: 'No active channel selected' })
+                    break
+                }
+
+                if (currentChannel.value.ownerId !== myId) {
+                    $q.notify({ type: 'negative', message: 'Only channel owner can /quit' })
+                    break
+                }
+
+                await api.delete(`/channels/${currentChannel.value.id}`, {
+                    headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                })
+
+                channels.value = channels.value.filter(c => c.id !== currentChannel.value?.id)
+                currentChannel.value = undefined
+                messages.value = []
+
+                showSuccess('Channel deleted')
+                break
+            }
+
+            default: {
+                $q.notify({
+                    type: 'warning',
+                    message: `Unknown command: ${cmd}`
+                })
+            }
+        }
+    } catch (err) {
+        showError(err)
+    }
+}
+
+
+const isAnybodyTyping = computed(() => {
+    if (!currentChannel.value) {
         return false;
     }
-    if(!typingUsers[currentChannel?.value.id])
-    {
+    if (!typingUsers[currentChannel?.value.id]) {
         return false;
     }
     return Object.keys(typingUsers[currentChannel?.value.id]!).length > 0;
 })
 
-const realTimeTypedMessage = computed(()=>
-{
+const realTimeTypedMessage = computed(() => {
     const channelId = currentChannel.value?.id;
     const userId = selectedUserToView.value;
     console.log(userId);
@@ -722,15 +905,20 @@ const showRealtimeTyping = ref(false);
 const selectedUserToView = ref<string>();
 
 function showRealtimeTypingDialog(userId: string) {
-   selectedUserToView.value = userId.toString();
-   showRealtimeTyping.value = true;
+    selectedUserToView.value = userId.toString();
+    showRealtimeTyping.value = true;
 }
 
-function typingMessage(value:any){
+function typingMessage(value: any) {
 
-    currentSocket.value.emit("typing", {channelId:currentChannel.value?.id, text:value});
+    if (!currentChannel.value) return;
 
+    currentSocket.value.emit("typing", {
+        channelId: currentChannel.value?.id,
+        text: value
+    });
 }
+
 </script>
 
 <style lang="scss">
@@ -759,37 +947,37 @@ function typingMessage(value:any){
         margin-left: 10px;
         flex: auto;
     }
-    .channel-title{
+
+    .channel-title {
         margin-left: 10px;
         flex: auto;
-        .typing-users-area
-        {
-        display: flex;
+
+        .typing-users-area {
+            display: flex;
         }
-        .typing-user
-        {
+
+        .typing-user {
             font-size: 0.75rem;
-            color:gray;
+            color: gray;
             font-weight: bold;
             cursor: pointer;
             margin-left: 2px;
-            flex:none;
-            &::after
-            {
+            flex: none;
+
+            &::after {
                 content: ',';
             }
-            &:first-child::after
-            {
-                content:'';
+
+            &:first-child::after {
+                content: '';
             }
-            &:last-child::after
-            {
-                content:'';
+
+            &:last-child::after {
+                content: '';
             }
-            
-            
-            &.fk
-            {
+
+
+            &.fk {
                 cursor: default;
                 margin-left: 10px;
                 font-weight: normal;
@@ -832,22 +1020,22 @@ function typingMessage(value:any){
 .back-button {
     display: none;
 }
-.real-typing-card
-{
-    width:40%
+
+.real-typing-card {
+    width: 40%
 }
 
 @media screen and (max-width:1024px) {
     .q-splitter--vertical>.q-splitter__separator>div {
         display: none;
     }
-    
+
     .back-button {
         display: inline-flex;
     }
-    .real-typing-card
-    {
-        width:95%;
+
+    .real-typing-card {
+        width: 95%;
     }
 }
 </style>
