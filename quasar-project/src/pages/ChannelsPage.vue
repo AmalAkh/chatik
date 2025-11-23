@@ -699,9 +699,6 @@ async function openChannel(channel: Channel) {
 }
 
 async function sendMessage() {
-    if (!currentChannel.value) return
-    if (!newMessage.value.trim()) return
-
     const text = newMessage.value.trim()
     if (!text) return
 
@@ -709,6 +706,15 @@ async function sendMessage() {
         await handleCommand(text)
         newMessage.value = ''
         typingMessage('')
+        return
+    }
+
+    if (!currentChannel.value) {
+        $q.notify({
+            type: 'warning',
+            message: 'Select a channel first',
+            position: 'top'
+        })
         return
     }
 
@@ -773,11 +779,11 @@ async function handleCommand(input: string) {
                 await createChannel()
 
                 const created = channels.value.find(c => c.name === name)
-                if (created) {
-                    await openChannel(created)
-                }
+                if (created) await openChannel(created)
+
                 break
             }
+
 
             // /invite nickName
             case '/invite': {
