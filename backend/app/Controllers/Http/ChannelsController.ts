@@ -21,12 +21,18 @@ export default class ChannelsController {
 
     public async leave({ auth, params, response }: HttpContextContract) {
         const user = auth.user!
-        const channel = await Channel.findOrFail(params.channelId)
+
+        const channel = await Channel.find(params.channelId)
+        if (!channel) {
+            return response.status(404).json({ error: 'Channel not found' })
+        }
 
         if (channel.owner_id === user.id) {
             await channel.delete()
-            Ws.io.emit('channel_deleted', { channelId: channel.id })
-            return { message: 'Channel deleted because the owner left' }
+            Ws.io.to(`channel:${channel.id}`).emit('channel_deleted', {
+                channelId: channel.id
+            })
+            return response.json({ message: 'Channel deleted because the owner left' })
         }
 
         const member = await ChannelMember
@@ -36,12 +42,15 @@ export default class ChannelsController {
             .first()
 
         if (!member) {
-            return { message: 'You are not a member of this channel' }
+            return response.status(403).json({
+                error: 'You are not a member of this channel',
+            })
         }
 
         await member.delete()
-        return { message: 'You have left the channel' }
+        return response.json({ message: 'You have left the channel' })
     }
+
 
     public async create({ request, auth, response }: HttpContextContract) {
         try {
@@ -152,6 +161,8 @@ export default class ChannelsController {
                 .first(),
         })
 
+        Ws.io.to(`user:${userId}`).socketsJoin(`channel:${channel.id}`)
+
         return { message: 'User added to the channel', member: newMember }
     }
 
@@ -209,18 +220,27 @@ export default class ChannelsController {
 
 
 
-    public async destroy({ params, auth }: HttpContextContract) {
+    public async destroy({ params, auth, response }: HttpContextContract) {
         const user = auth.user!
 
-        const channel = await Channel.findOrFail(params.channelId)
+        const channel = await Channel.find(params.channelId)
+        if (!channel) {
+            return response.status(404).json({ error: 'Channel not found' })
+        }
 
         if (channel.owner_id !== user.id) {
-            return { error: 'You are not the owner of this channel' }
+            return response.status(403).json({ error: 'You are not the owner of this channel' })
         }
+
+        const channelId = channel.id
 
         await channel.delete()
 
-        return { message: 'Channel deleted successfully' }
+        Ws.io.to(`channel:${channelId}`).emit('channel_deleted', { channelId })
+
+        return response.json({ message: 'Channel deleted successfully' })
     }
+
+
 
 }
