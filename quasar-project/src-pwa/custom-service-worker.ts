@@ -34,7 +34,9 @@ self.addEventListener("push", (event:PushEvent) => {
     console.log(userStatus);
     if(isAppVisible)
     {
-      
+      console.log(onlyPersonalMessages);
+      console.log(!data.body.includes(`@${nickname}`));
+
       if(onlyPersonalMessages && !data.body.includes(`@${nickname}`))
       {
         return; 
@@ -65,6 +67,29 @@ self.addEventListener("push", (event:PushEvent) => {
     
 })
 
+self.addEventListener("notificationclick", function (event) {
+  event.notification.close(); // Close the notification
+
+  // Example: open or focus a URL
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(clientList => {
+      const urlToOpen = new URL("/channels", self.location.origin).href;
+
+      // Check if a tab is already open
+      for (const client of clientList) {
+        if (client.url === urlToOpen && "focus" in client) {
+          return client.focus();
+        }
+      }
+
+      // Otherwise open a new tab
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});
+
 let isAppVisible = true;
 let userStatus = 'online';
 let onlyPersonalMessages = false;
@@ -85,12 +110,13 @@ self.addEventListener("message", event => {
   else if(message.type == "only_personal_messages")
   {
     onlyPersonalMessages = message.data;
-   
+    console.log('only persoanl messages', onlyPersonalMessages);
   }
   else if(message.type == "user_nickname")
   {
     nickname = message.data;
     console.log(nickname);
+    
   }
 });
 // Non-SSR fallbacks to index.html
