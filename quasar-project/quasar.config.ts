@@ -1,6 +1,6 @@
 // Configuration for your app
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
-
+import { useQuasar } from 'quasar'
 import { defineConfig } from '#q-app/wrappers';
 
 export default defineConfig((/* ctx */) => {
@@ -42,6 +42,7 @@ export default defineConfig((/* ctx */) => {
         vueShim: true,
         // extendTsConfig (tsConfig) {}
       },
+     
 
       vueRouterMode: 'history', // available values: 'hash', 'history'
       // vueRouterBase,
@@ -81,6 +82,11 @@ export default defineConfig((/* ctx */) => {
     devServer: {
       // https: true,
       open: true, // opens browser window automatically
+      headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,PATCH,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+      }
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
@@ -98,7 +104,7 @@ export default defineConfig((/* ctx */) => {
       // directives: [],
 
       // Quasar plugins
-      plugins: ['Notify'],
+      plugins: ['Notify', 'AppVisibility'],
     },
 
     // animations: 'all', // --- includes all animations
@@ -144,7 +150,19 @@ export default defineConfig((/* ctx */) => {
 
     // https://v2.quasar.dev/quasar-cli-vite/developing-pwa/configuring-pwa
     pwa: {
-      workboxMode: 'GenerateSW', // 'GenerateSW' or 'InjectManifest'
+      workboxMode: 'InjectManifest', // 'GenerateSW' or 'InjectManifest'
+      extendInjectManifestOptions(config) {
+        config.swSrc = "custom-service-worker.ts"
+        config.globPatterns = ['**/*.{js,css,html,ico,png,svg}'];
+        config.additionalManifestEntries = [
+        {
+          url: '/index.html',
+          revision: Math.random().toString(32).slice(2), // any unique string
+        }]
+        return config
+      },
+      
+      
       // swFilename: 'sw.js',
       // manifestFilename: 'manifest.json',
       // extendManifestJson (json) {},

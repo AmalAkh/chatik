@@ -7,6 +7,10 @@ export default class UsersController {
     const user = await User.query().where('nickname', params.nickname).firstOrFail()
     return { id: user.id, nickname: user.nickname, email: user.email }
   }
+  public async myNickname({ auth }: HttpContextContract) {
+    const user = auth.user!
+    return user.nickname;
+  }
   public async updateStatus({ auth, request, response }: HttpContextContract) {
     const user = auth.user!
     const status = request.input('status')

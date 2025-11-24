@@ -12,6 +12,7 @@ import type { LoggerConfig } from '@ioc:Adonis/Core/Logger'
 import type { ProfilerConfig } from '@ioc:Adonis/Core/Profiler'
 import type { ValidatorConfig } from '@ioc:Adonis/Core/Validator'
 
+
 /*
 |--------------------------------------------------------------------------
 | Application secret key
@@ -37,6 +38,7 @@ export const appKey: string = Env.get('APP_KEY')
 |
 */
 export const http: ServerConfig = {
+  
   /*
   |--------------------------------------------------------------------------
   | Allow method spoofing
@@ -48,6 +50,7 @@ export const http: ServerConfig = {
   | so on.
   |
   */
+  
   allowMethodSpoofing: false,
 
   /*
@@ -231,5 +234,6 @@ export const profiler: ProfilerConfig = {
 | to the default config https://git.io/JT0WE
 |
 */
+
 export const validator: ValidatorConfig = {
 }

@@ -73,7 +73,7 @@
                             </template>
                             <q-chat-message v-for="message in messages" :name="message.sender?.nickname || 'User'"
                                 avatar="https://cdn.quasar.dev/img/avatar4.jpg" :text="[message.text]"
-                                :sent="message.local" :key="message.id.toString() + message.userId.toString()"
+                                :sent="message.local" :key="message.id.toString()"
                                 :stamp="message.date.toString()" />
                         </q-infinite-scroll>
                     </q-scroll-area>
@@ -202,13 +202,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, computed, reactive } from 'vue'
+import { ref, onMounted, nextTick, computed, reactive, watch } from 'vue'
 import ChannelItem from 'src/components/ChannelItem.vue'
 import { api } from 'boot/axios'
 import { io } from "socket.io-client";
 import { useRouter } from 'vue-router';
-import type { Channel, ChannelMessage, User, UserStatus } from 'src/models';
 import { useQuasar } from 'quasar'
+import { urlBase64ToUint8Array } from 'src/utils/util-functions';
+import type { Channel, ChannelMessage, User, UserStatus } from 'src/models';
+import { PushNotificationsManager } from 'src/utils/PushNotificationsManager';
+
 
 const offlineCutoff = ref<string | null>(localStorage.getItem('offlineCutoff') || null)
 
@@ -222,10 +225,11 @@ const myId = Number(localStorage.getItem('userid'))
 async function updateStatus() {
     try {
         await api.put('/user/status', { status: userStatus.value }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
-
+        navigator.serviceWorker.controller?.postMessage({type:"user_status",data:userStatus.value});
         if (userStatus.value === 'offline') {
             offlineCutoff.value = new Date().toISOString()
             localStorage.setItem('offlineCutoff', offlineCutoff.value)
+           
             if (currentSocket.value?.connected) currentSocket.value.disconnect()
             return
         }
@@ -233,6 +237,8 @@ async function updateStatus() {
         if (userStatus.value === 'online') {
             offlineCutoff.value = null
             localStorage.removeItem('offlineCutoff')
+            
+
             if (!currentSocket.value?.connected) {
                 currentSocket.value.connect()
                 await new Promise(resolve => currentSocket.value.once('connect', resolve))
@@ -242,6 +248,7 @@ async function updateStatus() {
                 await reloadCurrentChannel()
             }
         }
+       
     } catch (err) {
         showError(err)
     }
@@ -344,6 +351,8 @@ window.addEventListener("resize", () => {
         splitterModel.value = 25
     }
 })
+
+
 
 async function loadChannelMembers() {
     if (!currentChannel.value) return
@@ -540,11 +549,11 @@ onMounted(async () => {
         if (userStatus.value === 'dnd') return
 
         if (msg.channelId !== currentChannel.value?.id && userStatus.value === 'online') {
-            $q.notify({
+            /*$q.notify({
                 type: 'info',
                 message: `New message from ${msg.sender.nickname}: ${msg.text}`,
                 position: 'top-right'
-            })
+            })*/
         }
 
     })
@@ -614,9 +623,22 @@ onMounted(async () => {
 
 
     });
+    const res = await api.get(`/user/mynickname`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+    navigator.serviceWorker.controller?.postMessage({type:"user_nickname", data:res.data});
+   
+    await askNotificationPermission();
+    await PushNotificationsManager.subscribeUser();
 
 
 })
+async function askNotificationPermission() 
+{ 
+    const permission = await Notification.requestPermission(); 
+    if (permission !== 'granted') { throw new Error('Notification permission denied'); } 
+}
+
 
 const messages = ref<ChannelMessage[]>([])
 let totalMessagesAmount = 0
@@ -653,7 +675,8 @@ async function reloadCurrentChannel() {
         convertMessageDate(msg)
         return msg
     })
-    messages.value.splice(0, messages.value.length, ...fresh)
+    console.log(fresh);
+    messages.value = fresh;
     await nextTick()
     setTimeout(() => {
         chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)

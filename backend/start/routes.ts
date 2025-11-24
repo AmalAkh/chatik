@@ -5,7 +5,11 @@ Route.group(() => {
   Route.post('login', 'AuthController.login')
 }).prefix('/auth')
 
-Route.put('/user/status', 'UsersController.updateStatus').middleware('auth')
+Route.group(() => {
+  Route.put('/status', 'UsersController.updateStatus')
+  Route.get('/mynickname', 'UsersController.myNickname')
+}).prefix('/user')
+.middleware('auth')
 
 Route.group(() => {
   Route.get('/', 'ChannelsController.index')
@@ -23,5 +27,14 @@ Route.group(() => {
   Route.post('/:channelId/', 'MessagesController.create')
   
 }).prefix('/messages').middleware('auth')
+
+
+Route.group(() => {
+  Route.post('/subscribe', 'PushController.subscribe'),
+  Route.post('/unsubscribe', 'PushController.unsubscribe'),
+  Route.post('/test', 'PushController.test')
+
+  
+}).prefix('/push').middleware('auth')
 
 Route.get('/users/by-nickname/:nickname', 'UsersController.byNickname').middleware('auth')

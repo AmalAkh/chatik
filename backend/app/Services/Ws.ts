@@ -16,7 +16,7 @@ class Ws {
 
     this.booted = true
     this.io = new Server(AdonisServer.instance!, {cors: {
-        origin: 'http://localhost:9000', // <-- your frontend URL
+        origin: '*', // <-- your frontend URL
         methods: ['GET', 'POST'],
         credentials: true
     }})
