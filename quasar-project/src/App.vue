@@ -14,7 +14,7 @@ watch(() => $q.appVisible, val => {
 })
 
 navigator.serviceWorker.addEventListener("message", event => {
-  console.log("Page received:", event.data);
+
   const message = event.data;
   $q.notify({
     type: 'info',

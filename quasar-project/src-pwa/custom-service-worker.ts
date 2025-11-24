@@ -35,7 +35,10 @@ self.addEventListener("push", (event:PushEvent) => {
     if(isAppVisible)
     {
       
-      
+      if(onlyPersonalMessages && !data.body.includes(`@${nickname}`))
+      {
+        return; 
+      }
       void self.clients.matchAll().then(clients => {
         clients.forEach(client => {
           client.postMessage({ type: "notification", data: data});
