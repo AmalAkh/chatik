@@ -74,11 +74,11 @@
 
 ## Notifications
 
-* [ ] User receives notifications for new messages
-* [ ] Notifications appear only when the app is not in the "visible" state
-* [ ] Notifications contain part of the message and the sender’s name
-* [ ] User can choose to receive notifications only for messages addressed to them
-* [ ] When in DND mode, no notifications are received
+* [x] User receives notifications for new messages
+* [x] Notifications appear only when the app is not in the "visible" state
+* [x] Notifications contain part of the message and the sender’s name
+* [x] User can choose to receive notifications only for messages addressed to them
+* [x] When in DND mode, no notifications are received
 
 ---
 
