@@ -16,7 +16,8 @@ export default class Channel extends BaseModel {
   public owner_id: number
 
   @hasOne(() => Message, {
-    onQuery: (query) => query.orderBy('id', 'desc').limit(1),
+    foreignKey: 'channelId',
+    onQuery: q => q.orderBy('id', 'desc'),
   })
   public lastMessage: HasOne<typeof Message>
 

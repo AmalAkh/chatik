@@ -71,10 +71,18 @@
                                     <q-spinner-dots color="primary" size="40px" />
                                 </div>
                             </template>
-                            <q-chat-message v-for="message in messages" :name="message.sender?.nickname || 'User'"
+                            <q-chat-message
+                            
+                                v-for="message in messages" :name="message.sender?.nickname || 'User'"
                                 avatar="https://cdn.quasar.dev/img/avatar4.jpg" :text="[message.text]"
                                 :sent="message.local" :key="message.id.toString()"
-                                :stamp="message.date.toString()" />
+                                :stamp="message.date.toString()" 
+                                :bg-color="getMessageColor(message)"
+                                >
+                                <template #default>
+                                    <div v-highlight-mention>{{ message.text }}</div>
+                                </template>
+                            </q-chat-message>
                         </q-infinite-scroll>
                     </q-scroll-area>
 
@@ -211,6 +219,7 @@ import { useQuasar } from 'quasar'
 import { urlBase64ToUint8Array } from 'src/utils/util-functions';
 import type { Channel, ChannelMessage, User, UserStatus } from 'src/models';
 import { PushNotificationsManager } from 'src/utils/PushNotificationsManager';
+import vHighlightMention from '../utils/highlight-mention'
 
 
 const offlineCutoff = ref<string | null>(localStorage.getItem('offlineCutoff') || null)
@@ -626,6 +635,7 @@ onMounted(async () => {
     const res = await api.get(`/user/mynickname`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     })
+    nickName = res.data;
     navigator.serviceWorker.controller?.postMessage({type:"user_nickname", data:res.data});
    
     await askNotificationPermission();
@@ -633,6 +643,7 @@ onMounted(async () => {
 
 
 })
+let nickName = "";
 async function askNotificationPermission() 
 { 
     const permission = await Notification.requestPermission(); 
@@ -948,6 +959,20 @@ function typingMessage(value: any) {
         text: value
     });
 }
+function getMessageColor(message: any): string {
+    const text = message.text ?? ''
+
+    // highlight if mentions current user (case-insensitive in data)
+    if (text.includes(`@${nickName.toLowerCase()}`)) {
+        return 'amber-7' // mention highlight
+    }
+
+    if (message.local) {
+        return 'green-4' // sent by me
+    }
+
+    return 'grey-3' // others
+}
 
 </script>
 
@@ -1054,7 +1079,9 @@ function typingMessage(value: any) {
 .real-typing-card {
     width: 40%
 }
-
+.mention {
+    color: blue;
+}
 @media screen and (max-width:1024px) {
     .q-splitter--vertical>.q-splitter__separator>div {
         display: none;
