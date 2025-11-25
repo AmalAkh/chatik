@@ -511,6 +511,13 @@ async function createChannel() {
 
 const currentSocket = ref()
 onMounted(async () => {
+    if (window.innerWidth < 1024) {
+        splitterDisabled.value = true
+        splitterModel.value = 100
+    } else {
+        splitterDisabled.value = false
+        splitterModel.value = 25
+    }
     await loadChannels()
     currentSocket.value = io("http://localhost:3333", {
         extraHeaders: {
