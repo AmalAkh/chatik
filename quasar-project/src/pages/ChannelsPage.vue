@@ -46,8 +46,7 @@
 
                         <q-btn class="back-button" v-show="splitterDisabled" flat round color="primary" size="md"
                             icon="arrow_back" @click="splitterModel = 100" />
-                        <img class="q-message-avatar q-message-avatar--sent"
-                            src="https://cdn.quasar.dev/img/avatar4.jpg" aria-hidden="true" />
+                        
                         <div class="channel-title">
                             <p>{{ currentChannel?.name }}</p>
                             <div class="typing-users-area" v-show="isAnybodyTyping">
@@ -74,7 +73,7 @@
                             <q-chat-message
                             
                                 v-for="message in messages" :name="message.sender?.nickname || 'User'"
-                                avatar="https://cdn.quasar.dev/img/avatar4.jpg" :text="[message.text]"
+                                :text="[message.text]"
                                 :sent="message.local" :key="message.id.toString()"
                                 :stamp="message.date.toString()" 
                                 :bg-color="getMessageColor(message)"
@@ -88,7 +87,7 @@
 
                     <!-- input area -->
                     <div class="bottom-message-area flex">
-                        <q-btn flat round color="primary" icon="attach_file" />
+                       
                         <q-input class="new-message-input" filled v-model="newMessage"
                             @update:model-value="typingMessage" placeholder="Message" />
                         <q-btn flat round color="primary" icon="send" @click="sendMessage" />
@@ -111,11 +110,7 @@
                         No members yet
                     </div>
                     <q-item v-for="member in channelMembers" :key="member.id">
-                        <q-item-section avatar>
-                            <q-avatar>
-                                <img :src="member.avatar || 'https://cdn.quasar.dev/img/avatar.png'" />
-                            </q-avatar>
-                        </q-item-section>
+                       
 
                         <q-item-section>
                             <q-item-label>{{ member.nickname }}</q-item-label>
