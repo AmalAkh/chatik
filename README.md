@@ -54,8 +54,8 @@
   * [x] Join using `/join channelName` (automatically creates the channel if it doesn’t exist)
   * [x] Invite another user using `/invite nickName`
   * [x] Kick a member using `/kick nickName`
-* [ ] If three members use `/kick nickName`, the user gets a permanent ban
-* [ ] Admin can kick or unban a user at any time
+* [x] If three members use `/kick nickName`, the user gets a permanent ban
+* [x] Admin can kick or unban a user at any time
 * [x] A user can leave a channel with `/cancel`
 
 ---
@@ -108,4 +108,5 @@
 
 * [x] If a user has an active channel open, they can see who is currently typing
 * [x] Clicking on a nickname shows the real-time text being typed (every change is visible)
+
 
