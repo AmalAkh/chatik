@@ -37,8 +37,8 @@
 
 ### Inactive Channels
 
-* [ ] If a channel has no new messages for more than 30 days, it is automatically deleted
-* [ ] The same channel name can then be reused
+* [x] If a channel has no new messages for more than 30 days, it is automatically deleted
+* [x] The same channel name can then be reused
 
 ---
 
