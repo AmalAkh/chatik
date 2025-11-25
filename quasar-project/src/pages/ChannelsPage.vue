@@ -786,7 +786,7 @@ async function handleCommand(input: string) {
                 const isPriv = args[1] === '[private]'
 
                 if (!name) {
-                    $q.notify({ type: 'warning', message: 'Usage: /join channelName [private]' })
+                    $q.notify({ type: 'warning', message: 'Usage: /join channelName [private]', position: "top" })
                     break
                 }
 
@@ -811,13 +811,13 @@ async function handleCommand(input: string) {
             // /invite nickName
             case '/invite': {
                 if (!currentChannel.value) {
-                    $q.notify({ type: 'warning', message: 'No active channel selected' })
+                    $q.notify({ type: 'warning', message: 'No active channel selected', position: "top" })
                     break
                 }
 
                 const nick = args[0]
                 if (!nick) {
-                    $q.notify({ type: 'warning', message: 'Usage: /invite nickName' })
+                    $q.notify({ type: 'warning', message: 'Usage: /invite nickName', position: "top" })
                     break
                 }
 
@@ -829,13 +829,13 @@ async function handleCommand(input: string) {
             // /kick nickName
             case '/kick': {
                 if (!currentChannel.value) {
-                    $q.notify({ type: 'warning', message: 'No active channel selected' })
+                    $q.notify({ type: 'warning', message: 'No active channel selected', position: "top" })
                     break
                 }
 
                 const nick = args[0]
                 if (!nick) {
-                    $q.notify({ type: 'warning', message: 'Usage: /kick nickName' })
+                    $q.notify({ type: 'warning', message: 'Usage: /kick nickName', position: "top" })
                     break
                 }
 
@@ -845,7 +845,7 @@ async function handleCommand(input: string) {
 
                 const member = channelMembers.value.find(m => m.nickname === nick)
                 if (!member) {
-                    $q.notify({ type: 'warning', message: `User ${nick} is not in this channel` })
+                    $q.notify({ type: 'warning', message: `User ${nick} is not in this channel`, position: "top" })
                     break
                 }
 
@@ -856,7 +856,7 @@ async function handleCommand(input: string) {
             // /cancel
             case '/cancel': {
                 if (!currentChannel.value) {
-                    $q.notify({ type: 'warning', message: 'No active channel selected' })
+                    $q.notify({ type: 'warning', message: 'No active channel selected', position: "top" })
                     break
                 }
                 await leaveChannel()
@@ -866,7 +866,7 @@ async function handleCommand(input: string) {
             // /list
             case '/list': {
                 if (!currentChannel.value) {
-                    $q.notify({ type: 'warning', message: 'No active channel selected' })
+                    $q.notify({ type: 'warning', message: 'No active channel selected', position: "top" })
                     break
                 }
                 await loadChannelMembers()
@@ -877,12 +877,12 @@ async function handleCommand(input: string) {
             // /quit
             case '/quit': {
                 if (!currentChannel.value) {
-                    $q.notify({ type: 'warning', message: 'No active channel selected' })
+                    $q.notify({ type: 'warning', message: 'No active channel selected', position: "top" })
                     break
                 }
 
                 if (currentChannel.value.ownerId !== myId) {
-                    $q.notify({ type: 'negative', message: 'Only channel owner can /quit' })
+                    $q.notify({ type: 'negative', message: 'Only channel owner can /quit', position: "top" })
                     break
                 }
 
@@ -901,7 +901,8 @@ async function handleCommand(input: string) {
             default: {
                 $q.notify({
                     type: 'warning',
-                    message: `Unknown command: ${cmd}`
+                    message: `Unknown command: ${cmd}`, 
+                    position: "top"
                 })
             }
         }
