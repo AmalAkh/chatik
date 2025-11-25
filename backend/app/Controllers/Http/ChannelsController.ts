@@ -1,6 +1,7 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Channel from 'App/Models/Channel'
 import ChannelMember from 'App/Models/ChannelMember'
+import ChannelBan from 'App/Models/ChannelBan'
 import Ws from 'App/Services/Ws'
 
 export default class ChannelsController {
@@ -60,6 +61,17 @@ export default class ChannelsController {
             let channel = await Channel.query().where('name', name).first()
 
             if (channel) {
+                const ban = await ChannelBan
+                    .query()
+                    .where('channel_id', channel.id)
+                    .where('user_id', user.id)
+                    .first()
+
+                if (ban) {
+                    return response.status(403).json({
+                        error: 'You cannot join this channel because you are banned.'
+                    })
+                }
                 if (channel.is_private) {
                     return response.status(403).json({
                         error: 'This channel is private. You cannot join it directly.',
@@ -144,6 +156,20 @@ export default class ChannelsController {
             return { message: 'User is already a member of the channel' }
         }
 
+        const ban = await ChannelBan.query()
+            .where('channel_id', channel.id)
+            .where('user_id', userId)
+            .first()
+
+        if (ban) {
+            if (user.id !== channel.owner_id) {
+                return response.status(403).json({
+                    error: 'This user is banned from this channel and can only be invited by the owner.'
+                })
+            }
+            await ban.delete()
+        }
+
         const newMember = await ChannelMember.create({
             channelId: channel.id,
             userId,
@@ -167,30 +193,85 @@ export default class ChannelsController {
     }
 
 
-    public async kick({ request, auth, params }: HttpContextContract) {
+
+    public async kick({ request, auth, params, response }: HttpContextContract) {
         const { userId } = request.only(['userId'])
-
         const user = auth.user!
-
         const channel = await Channel.findOrFail(params.channelId)
 
-        if (channel.is_private && channel.owner_id !== user.id) {
-            return { error: 'Only the owner can remove members from a private channel' }
+        if (!userId) {
+            return response.status(400).json({ error: 'Missing userId' })
         }
 
-        const memberToRemove = await ChannelMember.query()
-            .where('channelId', channel.id)
-            .where('userId', userId)
+
+        if (userId === channel.owner_id) {
+            return response.status(403).json({
+                error: "You cannot remove the channel owner."
+            })
+        }
+
+        const memberToKick = await ChannelMember
+            .query()
+            .where('channel_id', channel.id)
+            .where('user_id', userId)
             .first()
 
-        if (!memberToRemove) {
-            return { message: 'User is not a member of the channel' }
+        if (!memberToKick) {
+            return response.status(404).json({ error: 'User is not in the channel' })
         }
 
-        await memberToRemove.delete()
+        if (channel.owner_id === user.id) {
+            let ban = await ChannelBan.query()
+                .where('channel_id', channel.id)
+                .where('user_id', userId)
+                .first()
 
-        return { message: 'User removed from the channel' }
+            if (!ban) {
+                ban = await ChannelBan.create({
+                    channelId: channel.id,
+                    userId,
+                    votes: 3,
+                    permanent: true,
+                })
+            } else {
+                ban.permanent = true
+                ban.votes = 3
+                await ban.save()
+            }
+
+            await memberToKick.delete()
+
+            return { message: 'User permanently banned by owner' }
+        }
+
+        if (channel.is_private) {
+            return response.status(403).json({ error: 'Only the owner can kick in a private channel' })
+        }
+
+        let ban = await ChannelBan.query()
+            .where('channel_id', channel.id)
+            .where('user_id', userId)
+            .first()
+
+        if (!ban) {
+            ban = await ChannelBan.create({
+                channelId: channel.id,
+                userId,
+                votes: 1,
+            })
+        } else {
+            ban.votes += 1
+            await ban.save()
+        }
+
+        if (ban.votes >= 3) {
+            await memberToKick.delete()
+            return { message: 'User has been banned from this channel (3 votes reached)' }
+        }
+
+        return { message: `Kick vote added (${ban.votes}/3)` }
     }
+
 
     public async show({ params }: HttpContextContract) {
         const channel = await Channel.query()
