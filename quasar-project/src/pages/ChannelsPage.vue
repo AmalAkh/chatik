@@ -20,6 +20,7 @@
                     </div>
 
                     <!-- search bar -->
+                    <!--
                     <q-input v-model="newMessage" dense>
                         <template v-slot:prepend>
                             <q-icon name="search" style="margin: 10px;" />
@@ -27,7 +28,7 @@
                         <template v-slot:append>
                             <q-icon name="close" style="margin: 10px;" class="cursor-pointer" />
                         </template>
-                    </q-input>
+                    </q-input>-->
 
                     <!-- channels list -->
                     <q-scroll-area class="channels-scrollable-area" style="height: 100%;">
@@ -35,7 +36,12 @@
                             :last-message="channel.lastMessage"
                             :name="channel.isPrivate ? channel.name + ' 🔒' : channel.name"
                             :class="{ selected: channel.id == currentChannel?.id }" @click="openChannel(channel)" />
+                        
                     </q-scroll-area>
+                    <div class="mobile-command-entry">
+                        <q-input v-model="mobileCommand"  placeholder="Type command"/>
+                        <q-btn flat round color="primary" icon="send" @click="handleMobileCommand"/>
+                    </div>
                 </div>
             </template>
 
@@ -64,6 +70,7 @@
                     <!-- chat messages -->
                     <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
                         <q-infinite-scroll v-if="currentChannel" @load="loadMoreMessages"
+                            style="padding:10px"
                             ref="chatMessagesInfiniteScroll" reverse>
                             <template v-slot:loading>
                                 <div class="row justify-center q-my-md">
@@ -215,6 +222,7 @@ import { urlBase64ToUint8Array } from 'src/utils/util-functions';
 import type { Channel, ChannelMessage, User, UserStatus } from 'src/models';
 import { PushNotificationsManager } from 'src/utils/PushNotificationsManager';
 import vHighlightMention from '../utils/highlight-mention'
+
 
 
 const offlineCutoff = ref<string | null>(localStorage.getItem('offlineCutoff') || null)
@@ -976,6 +984,12 @@ function getMessageColor(message: any): string {
     return 'grey-3' // others
 }
 
+const mobileCommand = ref("");
+async function handleMobileCommand()
+{
+    await handleCommand(mobileCommand.value);
+    mobileCommand.value = "";
+}
 </script>
 
 <style lang="scss">
@@ -1084,7 +1098,30 @@ function getMessageColor(message: any): string {
 .mention {
     color: blue;
 }
+
+.mobile-command-entry
+{
+    display: none;
+    background-color: #f6f6f6;
+    padding: 10px;
+    
+    .q-input
+    {
+        flex:auto;
+        .q-field__control {
+            height: 40px;
+        }
+    }
+    .q-btn
+    {
+        flex:none;
+    }
+}
 @media screen and (max-width:1024px) {
+    .mobile-command-entry
+    {
+        display: flex;
+    }
     .q-splitter--vertical>.q-splitter__separator>div {
         display: none;
     }
