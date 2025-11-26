@@ -5,12 +5,13 @@ html, body, #q-app {
 {
     
     min-height: auto;
-    flex:auto
+    flex:auto;
+    max-width:100%;
 }
 .q-page-container
 {
     display: flex;
-
+    max-width: 100%;
 }
 .full-height
 {
