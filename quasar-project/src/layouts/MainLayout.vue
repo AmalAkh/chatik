@@ -41,7 +41,7 @@ async function logout() {
   
   
   $q.notify({ type: 'info', message: 'Logged out', position: 'top' })
-  await router.push('/auth/login')
+  await router.replace('/auth/login')
   
   
 }

@@ -192,86 +192,93 @@ export default class ChannelsController {
         return { message: 'User added to the channel', member: newMember }
     }
 
+    public async revoke({ auth, params, request, response }: HttpContextContract) {
+        const { userId } = request.only(['userId'])
+        const owner = auth.user!
+        const channel = await Channel.findOrFail(params.channelId)
+
+        if (!channel.is_private || channel.owner_id !== owner.id) {
+            return response.status(403).json({
+                error: 'Only the owner can revoke users from a private channel'
+            })
+        }
+
+        const member = await ChannelMember
+            .query()
+            .where('channelId', channel.id)
+            .where('userId', userId)
+            .first()
+
+        if (!member) {
+            return response.status(404).json({
+                error: 'This user is not a member of this private channel'
+            })
+        }
+
+        await member.delete()
+
+        return {
+            message: 'User has been removed from the private channel'
+        }
+    }
 
 
     public async kick({ request, auth, params, response }: HttpContextContract) {
         const { userId } = request.only(['userId'])
         const user = auth.user!
         const channel = await Channel.findOrFail(params.channelId)
-
+    
         if (!userId) {
             return response.status(400).json({ error: 'Missing userId' })
         }
-
-
+    
         if (userId === channel.owner_id) {
             return response.status(403).json({
                 error: "You cannot remove the channel owner."
             })
         }
-
+    
+        if (channel.is_private) {
+            return response.status(403).json({
+                error: 'Kick is disabled in private channels. Use /revoke instead.'
+            })
+        }
+    
         const memberToKick = await ChannelMember
             .query()
             .where('channel_id', channel.id)
             .where('user_id', userId)
             .first()
-
+    
         if (!memberToKick) {
             return response.status(404).json({ error: 'User is not in the channel' })
         }
-
-        if (channel.owner_id === user.id) {
-            let ban = await ChannelBan.query()
-                .where('channel_id', channel.id)
-                .where('user_id', userId)
-                .first()
-
-            if (!ban) {
-                ban = await ChannelBan.create({
-                    channelId: channel.id,
-                    userId,
-                    votes: 3,
-                    permanent: true,
-                })
-            } else {
-                ban.permanent = true
-                ban.votes = 3
-                await ban.save()
-            }
-
-            await memberToKick.delete()
-
-            return { message: 'User permanently banned by owner' }
-        }
-
-        if (channel.is_private) {
-            return response.status(403).json({ error: 'Only the owner can kick in a private channel' })
-        }
-
+    
         let ban = await ChannelBan.query()
             .where('channel_id', channel.id)
             .where('user_id', userId)
             .first()
-
+    
         if (!ban) {
             ban = await ChannelBan.create({
                 channelId: channel.id,
                 userId,
                 votes: 1,
+                permanent: false,
             })
         } else {
             ban.votes += 1
             await ban.save()
         }
-
+    
         if (ban.votes >= 3) {
             await memberToKick.delete()
             return { message: 'User has been banned from this channel (3 votes reached)' }
         }
-
+    
         return { message: `Kick vote added (${ban.votes}/3)` }
     }
-
+    
 
     public async show({ params }: HttpContextContract) {
         const channel = await Channel.query()
