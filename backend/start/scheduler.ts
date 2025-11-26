@@ -3,14 +3,15 @@ import Channel from 'App/Models/Channel';
 
 import { DateTime } from 'luxon'
 
+
 export async function removeInactiveChannels(days = 30) {
   const threshold = DateTime.now().minus({ days }).toSQL()
 
+  console.log("Checking for inactive channels...")
 
-  console.log("Check")
-  await Channel.query()
+  const channels = await Channel.query()
     .where((query) => {
-      // 1. Channel created more than 30 days ago OR has no messages
+      // Channels older than 30 days AND no messages
       query
         .where('created_at', '<', threshold)
         .whereNotExists((messagesQuery) => {
@@ -20,14 +21,18 @@ export async function removeInactiveChannels(days = 30) {
         })
     })
     .orWhere((query) => {
-      // 2. Last message older than 30 days
+      // Channels with last message older than 30 days
       query.whereHas('lastMessage', (msgQuery) => {
-        msgQuery.where('created_at', '<', threshold)
+        msgQuery.where('date', '<', threshold)
       })
     })
-    .delete()
+
+  console.log(`Found ${channels.length} channels to delete`)
+
+  await Promise.all(channels.map((channel) => channel.delete()))
 }
 
 
-Scheduler.call(removeInactiveChannels).everySeconds(30);
+
+Scheduler.call(removeInactiveChannels).everySeconds(5);
 
