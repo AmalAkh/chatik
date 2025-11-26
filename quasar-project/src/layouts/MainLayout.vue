@@ -1,9 +1,7 @@
 <template>
   <q-layout class="flex" style="flex-direction: column;" view="lHh Lpr lFf">
     <q-toolbar style="flex:none; height:auto!important;" class="bg-primary text-white row-auto">
-      <q-avatar>
-        <img src="https://cdn.quasar.dev/logo-v2/svg/logo-mono-white.svg">
-      </q-avatar>
+      
 
       <q-toolbar-title>Chatik</q-toolbar-title>
 

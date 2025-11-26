@@ -20,6 +20,7 @@
                     </div>
 
                     <!-- search bar -->
+                    <!--
                     <q-input v-model="newMessage" dense>
                         <template v-slot:prepend>
                             <q-icon name="search" style="margin: 10px;" />
@@ -27,7 +28,7 @@
                         <template v-slot:append>
                             <q-icon name="close" style="margin: 10px;" class="cursor-pointer" />
                         </template>
-                    </q-input>
+                    </q-input>-->
 
                     <!-- channels list -->
                     <q-scroll-area class="channels-scrollable-area" style="height: 100%;">
@@ -35,7 +36,12 @@
                             :last-message="channel.lastMessage"
                             :name="channel.isPrivate ? channel.name + ' 🔒' : channel.name"
                             :class="{ selected: channel.id == currentChannel?.id }" @click="openChannel(channel)" />
+                        
                     </q-scroll-area>
+                    <div class="mobile-command-entry">
+                        <q-input v-model="mobileCommand"  placeholder="Type command"/>
+                        <q-btn flat round color="primary" icon="send" @click="handleMobileCommand"/>
+                    </div>
                 </div>
             </template>
 
@@ -46,8 +52,7 @@
 
                         <q-btn class="back-button" v-show="splitterDisabled" flat round color="primary" size="md"
                             icon="arrow_back" @click="splitterModel = 100" />
-                        <img class="q-message-avatar q-message-avatar--sent"
-                            src="https://cdn.quasar.dev/img/avatar4.jpg" aria-hidden="true" />
+                        
                         <div class="channel-title">
                             <p>{{ currentChannel?.name }}</p>
                             <div class="typing-users-area" v-show="isAnybodyTyping">
@@ -65,6 +70,7 @@
                     <!-- chat messages -->
                     <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
                         <q-infinite-scroll v-if="currentChannel" @load="loadMoreMessages"
+                            style="padding:10px"
                             ref="chatMessagesInfiniteScroll" reverse>
                             <template v-slot:loading>
                                 <div class="row justify-center q-my-md">
@@ -74,7 +80,7 @@
                             <q-chat-message
                             
                                 v-for="message in messages" :name="message.sender?.nickname || 'User'"
-                                avatar="https://cdn.quasar.dev/img/avatar4.jpg" :text="[message.text]"
+                                :text="[message.text]"
                                 :sent="message.local" :key="message.id.toString()"
                                 :stamp="message.date.toString()" 
                                 :bg-color="getMessageColor(message)"
@@ -88,7 +94,7 @@
 
                     <!-- input area -->
                     <div class="bottom-message-area flex">
-                        <q-btn flat round color="primary" icon="attach_file" />
+                       
                         <q-input class="new-message-input" filled v-model="newMessage"
                             @update:model-value="typingMessage" placeholder="Message" />
                         <q-btn flat round color="primary" icon="send" @click="sendMessage" />
@@ -111,11 +117,7 @@
                         No members yet
                     </div>
                     <q-item v-for="member in channelMembers" :key="member.id">
-                        <q-item-section avatar>
-                            <q-avatar>
-                                <img :src="member.avatar || 'https://cdn.quasar.dev/img/avatar.png'" />
-                            </q-avatar>
-                        </q-item-section>
+                       
 
                         <q-item-section>
                             <q-item-label>{{ member.nickname }}</q-item-label>
@@ -220,6 +222,7 @@ import { urlBase64ToUint8Array } from 'src/utils/util-functions';
 import type { Channel, ChannelMessage, User, UserStatus } from 'src/models';
 import { PushNotificationsManager } from 'src/utils/PushNotificationsManager';
 import vHighlightMention from '../utils/highlight-mention'
+
 
 
 const offlineCutoff = ref<string | null>(localStorage.getItem('offlineCutoff') || null)
@@ -511,6 +514,13 @@ async function createChannel() {
 
 const currentSocket = ref()
 onMounted(async () => {
+    if (window.innerWidth < 1024) {
+        splitterDisabled.value = true
+        splitterModel.value = 100
+    } else {
+        splitterDisabled.value = false
+        splitterModel.value = 25
+    }
     await loadChannels()
     currentSocket.value = io("http://localhost:3333", {
         extraHeaders: {
@@ -974,6 +984,12 @@ function getMessageColor(message: any): string {
     return 'grey-3' // others
 }
 
+const mobileCommand = ref("");
+async function handleMobileCommand()
+{
+    await handleCommand(mobileCommand.value);
+    mobileCommand.value = "";
+}
 </script>
 
 <style lang="scss">
@@ -1082,7 +1098,30 @@ function getMessageColor(message: any): string {
 .mention {
     color: blue;
 }
+
+.mobile-command-entry
+{
+    display: none;
+    background-color: #f6f6f6;
+    padding: 10px;
+    
+    .q-input
+    {
+        flex:auto;
+        .q-field__control {
+            height: 40px;
+        }
+    }
+    .q-btn
+    {
+        flex:none;
+    }
+}
 @media screen and (max-width:1024px) {
+    .mobile-command-entry
+    {
+        display: flex;
+    }
     .q-splitter--vertical>.q-splitter__separator>div {
         display: none;
     }
