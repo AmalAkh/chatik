@@ -63,9 +63,9 @@
 ## Messages
 
 * [x] User can send messages only in channels they are a member of
-* [ ] A message can be addressed to a specific user using `@nickname`
+* [x] A message can be addressed to a specific user using `@nickname`
 
-  * [ ] Such messages are highlighted for that user
+  * [x] Such messages are highlighted for that user
 * [x] User can view the full message history
 
   * [x] Infinite scroll implemented
