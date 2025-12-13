@@ -53,59 +53,9 @@
         </q-splitter>
 
         <!-- dialog for viewing channel members -->
-        <q-dialog v-model="showMembersDialog">
-            <q-card style="min-width: 350px; max-height: 80vh;">
-                <q-card-section class="row items-center justify-between">
-                    <div class="text-h6">Channel members</div>
-                    <q-btn flat color="negative" icon="logout" label="Leave" size="sm" @click="leaveChannel" />
-                </q-card-section>
+        <ChannelMembersDialog v-model="showMembersDialog" :channel="currentChannel" :members="channelMembers"
+            :my-id="myId" @leave="leaveChannel" @kick="kickMember" @open-invite="showInviteDialog = true" />
 
-                <q-separator />
-                <q-card-section class="scroll" style="max-height: 60vh; overflow-y: auto;">
-                    <div v-if="channelMembers.length === 0" class="text-grey text-center q-mt-md">
-                        No members yet
-                    </div>
-                    <q-item v-for="member in channelMembers" :key="member.id">
-
-
-                        <q-item-section>
-                            <q-item-label>{{ member.nickname }}</q-item-label>
-                            <q-item-label caption>{{ member.email }}</q-item-label>
-                        </q-item-section>
-
-                        <q-item-label caption>
-                            <q-badge :color="member.status === 'online'
-                                ? 'positive'
-                                : member.status === 'dnd'
-                                    ? 'orange'
-                                    : 'grey'" :label="member.status" />
-                        </q-item-label>
-
-
-                        <q-item-section side>
-                            <template v-if="isOwner(member)">
-                                <q-badge color="primary" label="Owner" />
-                            </template>
-                            <template v-else-if="isCurrentUser(member)">
-                                <q-badge color="secondary" label="You" />
-                            </template>
-                            <template v-else-if="showRemoveButton(member)">
-                                <q-btn flat round dense icon="remove_circle" color="negative"
-                                    @click="kickMember(member.id)" />
-                            </template>
-                        </q-item-section>
-
-                    </q-item>
-                </q-card-section>
-
-                <q-card-actions align="right">
-                    <q-btn v-if="!currentChannel?.isPrivate || currentChannel?.ownerId === myId" flat label="Add user"
-                        color="primary" @click="showInviteDialog = true" />
-                    <q-btn flat label="Close" color="primary" v-close-popup />
-                </q-card-actions>
-
-            </q-card>
-        </q-dialog>
 
         <!-- dialog for inviting user -->
         <q-dialog v-model="showInviteDialog">
@@ -175,6 +125,7 @@ import ChannelsList from 'src/components/ChannelsList.vue'
 import ChatHeader from 'src/components/ChatHeader.vue'
 import MessagesList from 'src/components/MessagesList.vue'
 import MessageInput from 'src/components/MessageInput.vue'
+import ChannelMembersDialog from 'src/components/ChannelMembersDialog.vue'
 
 
 const currentTypingUsers = computed<Record<string, string>>(() => {
@@ -371,30 +322,6 @@ async function kickMember(userId: number) {
     } catch (err: any) {
         showError(err)
     }
-}
-
-function showRemoveButton(member: User): boolean {
-    const channel = currentChannel.value
-    if (!channel) return false
-
-    const myId = Number(localStorage.getItem('userid'))
-
-    if (channel.isPrivate) {
-        return channel.ownerId === myId && member.id !== myId
-    }
-
-    return member.id !== channel.ownerId && member.id !== myId
-}
-
-function isOwner(member: User): boolean {
-    const channel = currentChannel.value
-    if (!channel) return false
-    return member.id === channel.ownerId
-}
-
-function isCurrentUser(member: User): boolean {
-    const myId = Number(localStorage.getItem('userid') || localStorage.getItem('userId') || 0)
-    return member.id === myId
 }
 
 
