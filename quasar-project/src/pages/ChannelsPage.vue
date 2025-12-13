@@ -19,28 +19,13 @@
                         <span class="text-subtitle2">Channels</span>
                     </div>
 
-                    <!-- search bar -->
-                    <!--
-                    <q-input v-model="newMessage" dense>
-                        <template v-slot:prepend>
-                            <q-icon name="search" style="margin: 10px;" />
-                        </template>
-                        <template v-slot:append>
-                            <q-icon name="close" style="margin: 10px;" class="cursor-pointer" />
-                        </template>
-                    </q-input>-->
-
                     <!-- channels list -->
-                    <q-scroll-area class="channels-scrollable-area" style="height: 100%;">
-                        <channel-item v-for="channel in sortedChannels" :key="channel.id"
-                            :last-message="channel.lastMessage"
-                            :name="channel.isPrivate ? channel.name + ' 🔒' : channel.name"
-                            :class="{ selected: channel.id == currentChannel?.id }" @click="openChannel(channel)" />
-                        
-                    </q-scroll-area>
+                    <ChannelsList :sorted-channels="sortedChannels" :current-channel-id="currentChannel?.id"
+                        @open-channel="openChannel" />
+
                     <div class="mobile-command-entry">
-                        <q-input v-model="mobileCommand"  placeholder="Type command"/>
-                        <q-btn flat round color="primary" icon="send" @click="handleMobileCommand"/>
+                        <q-input v-model="mobileCommand" placeholder="Type command" />
+                        <q-btn flat round color="primary" icon="send" @click="handleMobileCommand" />
                     </div>
                 </div>
             </template>
@@ -48,57 +33,21 @@
             <!-- right panel with chat -->
             <template v-slot:after>
                 <div class="flex full-height chat-view">
-                    <div class="chat-top-area">
+                    <ChatHeader :channel="currentChannel" :typing-users="currentTypingUsers"
+                        :is-anybody-typing="isAnybodyTyping" :show-back="splitterDisabled"
+                        @open-members="() => { showMembersDialog = true; loadChannelMembers() }"
+                        @show-typing="showRealtimeTypingDialog" @back="splitterModel = 100" />
 
-                        <q-btn class="back-button" v-show="splitterDisabled" flat round color="primary" size="md"
-                            icon="arrow_back" @click="splitterModel = 100" />
-                        
-                        <div class="channel-title">
-                            <p>{{ currentChannel?.name }}</p>
-                            <div class="typing-users-area" v-show="isAnybodyTyping">
-                                <p class="typing-user fk">Typing:</p>
-                                <p class="typing-user" v-for="(user, index) in typingUsers[currentChannel?.id!]"
-                                    @click="showRealtimeTypingDialog(index)" :key="index">{{ index }}</p>
-
-                            </div>
-                        </div>
-                        <q-btn outline round color="primary" size="md" icon="info"
-                            @click="() => { showMembersDialog = true; loadChannelMembers(); }" />
-
-                    </div>
 
                     <!-- chat messages -->
-                    <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
-                        <q-infinite-scroll v-if="currentChannel" @load="loadMoreMessages"
-                            style="padding:10px"
-                            ref="chatMessagesInfiniteScroll" reverse>
-                            <template v-slot:loading>
-                                <div class="row justify-center q-my-md">
-                                    <q-spinner-dots color="primary" size="40px" />
-                                </div>
-                            </template>
-                            <q-chat-message
-                            
-                                v-for="message in messages" :name="message.sender?.nickname || 'User'"
-                                :text="[message.text]"
-                                :sent="message.local" :key="message.id.toString()"
-                                :stamp="message.date.toString()" 
-                                :bg-color="getMessageColor(message)"
-                                >
-                                <template #default>
-                                    <div v-highlight-mention>{{ message.text }}</div>
-                                </template>
-                            </q-chat-message>
-                        </q-infinite-scroll>
-                    </q-scroll-area>
+                    <MessagesList ref="messagesList" :messages="messages" :load-more="loadMoreMessages"
+                        :get-message-color="getMessageColor" :enabled="!!currentChannel" />
+
 
                     <!-- input area -->
-                    <div class="bottom-message-area flex">
-                       
-                        <q-input class="new-message-input" filled v-model="newMessage"
-                            @update:model-value="typingMessage" placeholder="Message" />
-                        <q-btn flat round color="primary" icon="send" @click="sendMessage" />
-                    </div>
+                    <MessageInput v-model="newMessage" :disabled="!currentChannel" @typing="typingMessage"
+                        @send="sendMessage" />
+
                 </div>
             </template>
         </q-splitter>
@@ -117,7 +66,7 @@
                         No members yet
                     </div>
                     <q-item v-for="member in channelMembers" :key="member.id">
-                       
+
 
                         <q-item-section>
                             <q-item-label>{{ member.nickname }}</q-item-label>
@@ -222,7 +171,17 @@ import { urlBase64ToUint8Array } from 'src/utils/util-functions';
 import type { Channel, ChannelMessage, User, UserStatus } from 'src/models';
 import { PushNotificationsManager } from 'src/utils/PushNotificationsManager';
 import vHighlightMention from '../utils/highlight-mention'
+import ChannelsList from 'src/components/ChannelsList.vue'
+import ChatHeader from 'src/components/ChatHeader.vue'
+import MessagesList from 'src/components/MessagesList.vue'
+import MessageInput from 'src/components/MessageInput.vue'
 
+
+const currentTypingUsers = computed<Record<string, string>>(() => {
+    const channelId = currentChannel.value?.id
+    if (channelId === undefined) return {}
+    return typingUsers[channelId] ?? {}
+})
 
 
 const offlineCutoff = ref<string | null>(localStorage.getItem('offlineCutoff') || null)
@@ -237,11 +196,11 @@ const myId = Number(localStorage.getItem('userid'))
 async function updateStatus() {
     try {
         await api.put('/user/status', { status: userStatus.value }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
-        navigator.serviceWorker.controller?.postMessage({type:"user_status",data:userStatus.value});
+        navigator.serviceWorker.controller?.postMessage({ type: "user_status", data: userStatus.value });
         if (userStatus.value === 'offline') {
             offlineCutoff.value = new Date().toISOString()
             localStorage.setItem('offlineCutoff', offlineCutoff.value)
-           
+
             if (currentSocket.value?.connected) currentSocket.value.disconnect()
             return
         }
@@ -249,7 +208,7 @@ async function updateStatus() {
         if (userStatus.value === 'online') {
             offlineCutoff.value = null
             localStorage.removeItem('offlineCutoff')
-            
+
 
             if (!currentSocket.value?.connected) {
                 currentSocket.value.connect()
@@ -260,7 +219,7 @@ async function updateStatus() {
                 await reloadCurrentChannel()
             }
         }
-       
+
     } catch (err) {
         showError(err)
     }
@@ -646,18 +605,17 @@ onMounted(async () => {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     })
     nickName = res.data;
-    navigator.serviceWorker.controller?.postMessage({type:"user_nickname", data:res.data});
-   
+    navigator.serviceWorker.controller?.postMessage({ type: "user_nickname", data: res.data });
+
     await askNotificationPermission();
     await PushNotificationsManager.subscribeUser();
 
 
 })
 let nickName = "";
-async function askNotificationPermission() 
-{ 
-    const permission = await Notification.requestPermission(); 
-    if (permission !== 'granted') { throw new Error('Notification permission denied'); } 
+async function askNotificationPermission() {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') { throw new Error('Notification permission denied'); }
 }
 
 
@@ -922,7 +880,7 @@ async function handleCommand(input: string) {
             default: {
                 $q.notify({
                     type: 'warning',
-                    message: `Unknown command: ${cmd}`, 
+                    message: `Unknown command: ${cmd}`,
                     position: "top"
                 })
             }
@@ -985,8 +943,7 @@ function getMessageColor(message: any): string {
 }
 
 const mobileCommand = ref("");
-async function handleMobileCommand()
-{
+async function handleMobileCommand() {
     await handleCommand(mobileCommand.value);
     mobileCommand.value = "";
 }
@@ -1095,33 +1052,34 @@ async function handleMobileCommand()
 .real-typing-card {
     width: 40%
 }
+
 .mention {
     color: blue;
 }
 
-.mobile-command-entry
-{
+.mobile-command-entry {
     display: none;
     background-color: #f6f6f6;
     padding: 10px;
-    
-    .q-input
-    {
-        flex:auto;
+
+    .q-input {
+        flex: auto;
+
         .q-field__control {
             height: 40px;
         }
     }
-    .q-btn
-    {
-        flex:none;
+
+    .q-btn {
+        flex: none;
     }
 }
+
 @media screen and (max-width:1024px) {
-    .mobile-command-entry
-    {
+    .mobile-command-entry {
         display: flex;
     }
+
     .q-splitter--vertical>.q-splitter__separator>div {
         display: none;
     }
