@@ -58,74 +58,38 @@
 
 
         <!-- dialog for inviting user -->
-        <q-dialog v-model="showInviteDialog">
-            <q-card style="min-width: 350px">
-                <q-card-section>
-                    <div class="text-h6">Invite user by nickname</div>
-                </q-card-section>
+        <InviteUserDialog v-model="showInviteDialog" v-model:nickname="inviteNickname" :loading="inviteLoading"
+            @invite="inviteUser" />
 
-                <q-card-section>
-                    <q-input v-model="inviteNickname" label="Enter nickname" autofocus @keyup.enter="inviteUser" />
-                </q-card-section>
-
-                <q-card-actions align="right">
-                    <q-btn flat label="Cancel" v-close-popup />
-                    <q-btn color="primary" label="Invite" :loading="inviteLoading" @click="inviteUser" />
-                </q-card-actions>
-            </q-card>
-        </q-dialog>
 
         <!-- dialog for creating a channel -->
-        <q-dialog v-model="showCreateDialog">
-            <q-card style="min-width: 350px">
-                <q-card-section>
-                    <div class="text-h6">Create a new channel</div>
-                </q-card-section>
+        <CreateChannelDialog v-model="showCreateDialog" v-model:channelName="channelName" v-model:isPrivate="isPrivate"
+            @create="createChannel" />
 
-                <q-card-section>
-                    <q-input v-model="channelName" label="Channel name" autofocus />
-                    <q-toggle v-model="isPrivate" label="Private channel" />
-                </q-card-section>
-
-                <q-card-actions align="right">
-                    <q-btn flat label="Cancel" v-close-popup />
-                    <q-btn color="primary" label="Create" @click="createChannel" />
-                </q-card-actions>
-            </q-card>
-        </q-dialog>
     </q-page>
 
-    <q-dialog v-model="showRealtimeTyping">
-        <q-card class="real-typing-card">
-            <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">{{ selectedUserToView }} is typing:</div>
-                <q-space />
-                <q-btn icon="close" flat round dense v-close-popup />
-            </q-card-section>
+    <RealtimeTypingDialog v-model="showRealtimeTyping" :user="selectedUserToView" :message="realTimeTypedMessage" />
 
-            <q-card-section>
-                {{ realTimeTypedMessage }}
-            </q-card-section>
-        </q-card>
-    </q-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick, computed, reactive, watch } from 'vue'
-import ChannelItem from 'src/components/ChannelItem.vue'
 import { api } from 'boot/axios'
 import { io } from "socket.io-client";
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar'
-import { urlBase64ToUint8Array } from 'src/utils/util-functions';
 import type { Channel, ChannelMessage, User, UserStatus } from 'src/models';
 import { PushNotificationsManager } from 'src/utils/PushNotificationsManager';
-import vHighlightMention from '../utils/highlight-mention'
 import ChannelsList from 'src/components/ChannelsList.vue'
 import ChatHeader from 'src/components/ChatHeader.vue'
 import MessagesList from 'src/components/MessagesList.vue'
 import MessageInput from 'src/components/MessageInput.vue'
 import ChannelMembersDialog from 'src/components/ChannelMembersDialog.vue'
+import InviteUserDialog from 'src/components/InviteUserDialog.vue'
+import CreateChannelDialog from 'src/components/CreateChannelDialog.vue'
+import RealtimeTypingDialog from 'src/components/RealtimeTypingDialog.vue'
+import { useChatSocket } from 'src/composables/useChatSocket'
+import type { QNotifyCreateOptions } from 'quasar'
 
 
 const currentTypingUsers = computed<Record<string, string>>(() => {
@@ -134,25 +98,98 @@ const currentTypingUsers = computed<Record<string, string>>(() => {
     return typingUsers[channelId] ?? {}
 })
 
+const channels = ref<Channel[]>([])
+const currentChannel = ref<Channel>()
+
+const messages = ref<ChannelMessage[]>([])
+let totalMessagesAmount = 0
+let currentOffset = 20
+const channelMembers = ref<User[]>([])
+const typingUsers = reactive<Record<number, Record<string, string>>>({})
+
+type Status = 'online' | 'offline' | 'dnd'
+const userStatus = ref<Status>('online')
+
+const myId = Number(localStorage.getItem('userid'))
+
 
 const offlineCutoff = ref<string | null>(localStorage.getItem('offlineCutoff') || null)
 
 const $q = useQuasar()
 const router = useRouter()
 
-const userStatus = ref('online')
+const showRealtimeTyping = ref(false);
+const selectedUserToView = ref<string>();
 
-const myId = Number(localStorage.getItem('userid'))
+const splitterModel = ref(25)
+const splitterDisabled = ref(false)
+const newMessage = ref("")
+const showCreateDialog = ref(false)
+const isPrivate = ref(false)
+
+const channelName = ref("")
+
+const chatMessagesScrollArea = ref<any>(null)
+
+const showMembersDialog = ref(false)
+
+const showInviteDialog = ref(false)
+const inviteNickname = ref("")
+const inviteLoading = ref(false)
+
+window.addEventListener("resize", () => {
+    if (window.innerWidth < 1024) {
+        splitterDisabled.value = true
+        splitterModel.value = 100
+    } else {
+        splitterDisabled.value = false
+        splitterModel.value = 25
+    }
+})
+
+const messagesList = ref<any>(null)
+
+function scrollToBottom() {
+    messagesList.value?.scrollArea?.setScrollPercentage('vertical', 100)
+}
+
+const { connectSocket, disconnectSocket, joinChannel, emitTyping, emitNewMessage } = useChatSocket({
+    url: 'http://localhost:3333',
+    token: () => localStorage.getItem('token'),
+    myId,
+
+    userStatus,
+
+    channels,
+    currentChannel,
+    messages,
+    typingUsers,
+    channelMembers,
+
+    loadChannels,
+
+    showError,
+    notify: (o: QNotifyCreateOptions) => $q.notify(o),
+    onAuthRedirect: () => { void router.push('/auth/login') },
+
+    scrollToBottom,
+})
+
 
 async function updateStatus() {
     try {
-        await api.put('/user/status', { status: userStatus.value }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
-        navigator.serviceWorker.controller?.postMessage({ type: "user_status", data: userStatus.value });
+        await api.put(
+            '/user/status',
+            { status: userStatus.value },
+            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+        )
+
+        navigator.serviceWorker.controller?.postMessage({ type: "user_status", data: userStatus.value })
+
         if (userStatus.value === 'offline') {
             offlineCutoff.value = new Date().toISOString()
             localStorage.setItem('offlineCutoff', offlineCutoff.value)
-
-            if (currentSocket.value?.connected) currentSocket.value.disconnect()
+            disconnectSocket()
             return
         }
 
@@ -160,12 +197,9 @@ async function updateStatus() {
             offlineCutoff.value = null
             localStorage.removeItem('offlineCutoff')
 
-
-            if (!currentSocket.value?.connected) {
-                currentSocket.value.connect()
-                await new Promise(resolve => currentSocket.value.once('connect', resolve))
-            }
+            await connectSocket()
             await loadChannels()
+
             if (currentChannel.value) {
                 await reloadCurrentChannel()
             }
@@ -175,9 +209,6 @@ async function updateStatus() {
         showError(err)
     }
 }
-
-
-
 
 
 // Notify helpers
@@ -242,39 +273,6 @@ function showSuccess(message?: string) {
         timeout: 3000
     })
 }
-
-
-const splitterModel = ref(25)
-const splitterDisabled = ref(false)
-const newMessage = ref("")
-const showCreateDialog = ref(false)
-const isPrivate = ref(false)
-
-const channels = ref<Channel[]>([])
-const currentChannel = ref<Channel>()
-const channelName = ref("")
-
-const chatMessagesScrollArea = ref<any>(null)
-const chatMessagesInfiniteScroll = ref<any>(null)
-
-const showMembersDialog = ref(false)
-const channelMembers = ref<User[]>([])
-
-const showInviteDialog = ref(false)
-const inviteNickname = ref("")
-const inviteLoading = ref(false)
-
-window.addEventListener("resize", () => {
-    if (window.innerWidth < 1024) {
-        splitterDisabled.value = true
-        splitterModel.value = 100
-    } else {
-        splitterDisabled.value = false
-        splitterModel.value = 25
-    }
-})
-
-
 
 async function loadChannelMembers() {
     if (!currentChannel.value) return
@@ -407,148 +405,25 @@ onMounted(async () => {
         splitterDisabled.value = false
         splitterModel.value = 25
     }
+
     await loadChannels()
-    currentSocket.value = io("http://localhost:3333", {
-        extraHeaders: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
-    })
-    currentSocket.value.on("connect", async () => {
-        console.log("Connected!", currentSocket.value.id)
+    await connectSocket()
 
-        if (userStatus.value === "online") {
-            await loadChannels()
-            if (currentChannel.value) {
-                const newMessages = await api.get(`/messages/${currentChannel.value.id}?offset=0`)
-                messages.value.splice(0, messages.value.length, ...newMessages.data.messages)
-                await nextTick()
-                setTimeout(() => {
-                    chatMessagesScrollArea.value?.setScrollPercentage('vertical', 200)
-                }, 150)
-            }
-
-        }
-    })
-
-
-    currentSocket.value.on("disconnect", (reason: any) => console.log("Disconnected:", reason))
-    currentSocket.value.on("connect_error", async (err: any) => {
-        showError(err)
-        await router.push("/auth/login")
-    })
-    currentSocket.value.on("new_message", async (msg: ChannelMessage) => {
-        if (msg.userId.toString() === localStorage.getItem("userid")) return
-
-        convertMessageDate(msg)
-
-        if (msg.channelId == currentChannel.value?.id) {
-            msg.local = false
-            messages.value?.push(msg)
-            await nextTick()
-            chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
-        }
-
-        const targetChannel = channels.value.find(channel => channel.id == msg.channelId)
-        if (targetChannel) targetChannel.lastMessage = msg
-
-        if (userStatus.value === 'dnd') return
-
-        if (msg.channelId !== currentChannel.value?.id && userStatus.value === 'online') {
-            /*$q.notify({
-                type: 'info',
-                message: `New message from ${msg.sender.nickname}: ${msg.text}`,
-                position: 'top-right'
-            })*/
-        }
-
-    })
-
-    currentSocket.value.on("user_status_changed", (data: { userId: number, status: UserStatus }) => {
-        const member = channelMembers.value.find(m => m.id === data.userId)
-        if (member) member.status = data.status
-    })
-
-    currentSocket.value.on('invited_to_channel', (channel: any) => {
-        channels.value = channels.value.filter(c => c.id !== channel.id)
-
-        channels.value.unshift({
-            ...channel,
-            isPrivate: channel.isPrivate ?? false,
-            ownerId: channel.ownerId ?? 0,
-            lastMessage: channel.lastMessage
-                ? {
-                    ...channel.lastMessage,
-                    date: new Date(channel.lastMessage.date),
-                }
-                : null,
-        })
-
-        $q.notify({
-            type: 'info',
-            message: `You were added to channel "${channel.name}"`,
-            position: 'top',
-        })
-    })
-
-    currentSocket.value.on('channel_deleted', async (data: { channelId: number }) => {
-        channels.value = channels.value.filter(c => c.id !== data.channelId)
-
-        if (currentChannel.value?.id === data.channelId) {
-            currentChannel.value = undefined
-            messages.value = []
-            $q.notify({
-                type: 'warning',
-                message: 'Channel was deleted by owner',
-                position: 'top'
-            })
-        }
-        await loadChannels()
-    })
-
-    currentSocket.value.on("typing", (msg: { channelId: number, text: string, user: { nickname: string } }) => {
-        const { channelId, text, user } = msg
-        const nickname = user.nickname
-
-        // Ensure the channel exists as a reactive object
-        if (!typingUsers[channelId]) {
-            // Important: use Vue.set or assign reactive object
-            typingUsers[channelId] = reactive({})
-        }
-
-
-        if (text.trim() == '') {
-            delete typingUsers[channelId][nickname];
-
-
-        } else {
-            typingUsers[channelId][nickname] = text
-        }
-
-
-
-
-    });
     const res = await api.get(`/user/mynickname`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     })
-    nickName = res.data;
-    navigator.serviceWorker.controller?.postMessage({ type: "user_nickname", data: res.data });
+    nickName = res.data
+    navigator.serviceWorker.controller?.postMessage({ type: "user_nickname", data: res.data })
 
-    await askNotificationPermission();
-    await PushNotificationsManager.subscribeUser();
-
-
+    await askNotificationPermission()
+    await PushNotificationsManager.subscribeUser()
 })
+
 let nickName = "";
 async function askNotificationPermission() {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') { throw new Error('Notification permission denied'); }
 }
-
-
-const messages = ref<ChannelMessage[]>([])
-let totalMessagesAmount = 0
-let currentOffset = 20
 
 async function loadMessages(offset: number = 0) {
     try {
@@ -585,7 +460,7 @@ async function reloadCurrentChannel() {
     messages.value = fresh;
     await nextTick()
     setTimeout(() => {
-        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
+        scrollToBottom()
     }, 120)
 }
 
@@ -615,11 +490,11 @@ async function openChannel(channel: Channel) {
     totalMessagesAmount = 0
     currentOffset = 20
     currentChannel.value = channel
-    currentSocket.value.emit("join_channel", { channelId: channel.id })
+    joinChannel(channel.id)
     await loadMessages()
     await nextTick()
     setTimeout(() => {
-        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100, 10)
+        scrollToBottom()
     }, 100)
     if (window.innerWidth < 1024) {
         splitterDisabled.value = true
@@ -667,10 +542,10 @@ async function sendMessage() {
         await nextTick()
 
         setTimeout(() => {
-            chatMessagesScrollArea.value?.setScrollPercentage('vertical', 1)
+            scrollToBottom()
         }, 120)
 
-        currentSocket.value?.emit("new_message", newMsg)
+        emitNewMessage(newMsg)
 
         newMessage.value = ""
         typingMessage("");
@@ -836,9 +711,6 @@ const realTimeTypedMessage = computed(() => {
 
     return typingUsers[channelId]?.[userId] ?? "";
 })
-const typingUsers = reactive<Record<number, Record<string, string>>>({});
-const showRealtimeTyping = ref(false);
-const selectedUserToView = ref<string>();
 
 function showRealtimeTypingDialog(userId: string) {
     selectedUserToView.value = userId.toString();
@@ -846,14 +718,10 @@ function showRealtimeTypingDialog(userId: string) {
 }
 
 function typingMessage(value: any) {
-
-    if (!currentChannel.value) return;
-
-    currentSocket.value.emit("typing", {
-        channelId: currentChannel.value?.id,
-        text: value
-    });
+  if (!currentChannel.value) return
+  emitTyping(currentChannel.value.id, value)
 }
+
 function getMessageColor(message: any): string {
     const text = message.text ?? ''
 
