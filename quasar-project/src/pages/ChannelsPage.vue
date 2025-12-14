@@ -45,7 +45,7 @@
 
 
                     <!-- input area -->
-                    <MessageInput v-model="newMessage" :disabled="!currentChannel" @typing="typingMessage"
+                    <MessageInput v-model="newMessage" :disabled="false" @typing="typingMessage"
                         @send="sendMessage" />
 
                 </div>
@@ -90,6 +90,7 @@ import CreateChannelDialog from 'src/components/CreateChannelDialog.vue'
 import RealtimeTypingDialog from 'src/components/RealtimeTypingDialog.vue'
 import { useChatSocket } from 'src/composables/useChatSocket'
 import type { QNotifyCreateOptions } from 'quasar'
+import { fasBedPulse } from '@quasar/extras/fontawesome-v6';
 
 
 const currentTypingUsers = computed<Record<string, string>>(() => {
@@ -323,20 +324,20 @@ async function kickMember(userId: number) {
 }
 
 async function revokeMember(userId: number) {
-  if (!currentChannel.value) return
-  try {
-    const res = await api.post(
-      `/channels/${currentChannel.value.id}/revoke`,
-      { userId },
-      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-    )
+    if (!currentChannel.value) return
+    try {
+        const res = await api.post(
+            `/channels/${currentChannel.value.id}/revoke`,
+            { userId },
+            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+        )
 
-    showSuccess(res.data.message)
+        showSuccess(res.data.message)
 
-    channelMembers.value = channelMembers.value.filter(m => m.id !== userId)
-  } catch (err: any) {
-    showError(err)
-  }
+        channelMembers.value = channelMembers.value.filter(m => m.id !== userId)
+    } catch (err: any) {
+        showError(err)
+    }
 }
 
 
