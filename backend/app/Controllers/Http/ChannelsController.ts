@@ -3,6 +3,9 @@ import Channel from 'App/Models/Channel'
 import ChannelMember from 'App/Models/ChannelMember'
 import ChannelBan from 'App/Models/ChannelBan'
 import Ws from 'App/Services/Ws'
+import Message from 'App/Models/ChannelMessage'
+import User from 'App/Models/User'
+
 
 export default class ChannelsController {
     public async index({ auth }: HttpContextContract) {
@@ -160,8 +163,8 @@ export default class ChannelsController {
             .where('channel_id', channel.id)
             .where('user_id', userId)
             .first()
-        
-        if (ban && ban?.votes >= 3) {
+
+        if (ban && ban.votes >= 3) {
             if (user.id !== channel.owner_id) {
                 return response.status(403).json({
                     error: 'This user is banned from this channel and can only be invited by the owner.'
@@ -175,22 +178,42 @@ export default class ChannelsController {
             userId,
         })
 
+        const invitedUser = await User.findOrFail(userId)
+        const text = `Hello @${invitedUser.nickname}`
+
+        const message = await Message.create({
+            channelId: channel.id,
+            userId: user.id,
+            text,
+        })
+
+        Ws.io.to(`channel:${channel.id}`).emit('new_message', {
+            ...message.serialize(),
+            sender: {
+                id: user.id,
+                nickname: user.nickname,
+            },
+        })
+
         Ws.io.to(`user:${userId}`).emit('invited_to_channel', {
             id: channel.id,
             name: channel.name,
             isPrivate: channel.is_private,
             ownerId: channel.owner_id,
-            lastMessage: await channel
-                .related('lastMessage')
-                .query()
-                .preload('sender', q => q.select(['nickname']))
-                .first(),
+            lastMessage: {
+                ...message.serialize(),
+                sender: {
+                    id: user.id,
+                    nickname: user.nickname,
+                },
+            },
         })
 
         Ws.io.to(`user:${userId}`).socketsJoin(`channel:${channel.id}`)
 
         return { message: 'User added to the channel', member: newMember }
     }
+
 
     public async revoke({ auth, params, request, response }: HttpContextContract) {
         const { userId } = request.only(['userId'])

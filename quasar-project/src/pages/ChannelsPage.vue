@@ -361,6 +361,8 @@ async function inviteUser() {
         showInviteDialog.value = false
         inviteNickname.value = ""
         await loadChannelMembers()
+        await reloadCurrentChannel()
+        await loadChannels()
     } catch (err: any) {
         showError(err)
     } finally {
