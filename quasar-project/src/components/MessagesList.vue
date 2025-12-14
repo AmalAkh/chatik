@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { ChannelMessage } from 'src/models'
+import vHighlightMention from '../utils/highlight-mention'
 
 defineProps<{
     messages: ChannelMessage[]
