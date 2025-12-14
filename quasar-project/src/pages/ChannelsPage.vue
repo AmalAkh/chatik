@@ -45,8 +45,7 @@
 
 
                     <!-- input area -->
-                    <MessageInput v-model="newMessage" :disabled="false" @typing="typingMessage"
-                        @send="sendMessage" />
+                    <MessageInput v-model="newMessage" :disabled="false" @typing="typingMessage" @send="sendMessage" />
 
                 </div>
             </template>
@@ -646,9 +645,19 @@ async function handleCommand(input: string) {
                     await loadChannelMembers()
                 }
 
+
                 const member = channelMembers.value.find(m => m.nickname === nick)
                 if (!member) {
                     $q.notify({ type: 'warning', message: `User ${nick} is not in this channel`, position: "top" })
+                    break
+                }
+
+                if (member.id === myId) {
+                    $q.notify({
+                        type: 'warning',
+                        message: `You can't kick yourself`,
+                        position: 'top'
+                    })
                     break
                 }
 
