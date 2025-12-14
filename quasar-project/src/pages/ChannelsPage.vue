@@ -427,6 +427,7 @@ onMounted(async () => {
     await loadChannels()
     await connectSocket()
 
+    await navigator.serviceWorker.ready;
     const res = await api.get(`/user/mynickname`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     })
