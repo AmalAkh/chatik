@@ -19,28 +19,13 @@
                         <span class="text-subtitle2">Channels</span>
                     </div>
 
-                    <!-- search bar -->
-                    <!--
-                    <q-input v-model="newMessage" dense>
-                        <template v-slot:prepend>
-                            <q-icon name="search" style="margin: 10px;" />
-                        </template>
-                        <template v-slot:append>
-                            <q-icon name="close" style="margin: 10px;" class="cursor-pointer" />
-                        </template>
-                    </q-input>-->
-
                     <!-- channels list -->
-                    <q-scroll-area class="channels-scrollable-area" style="height: 100%;">
-                        <channel-item v-for="channel in sortedChannels" :key="channel.id"
-                            :last-message="channel.lastMessage"
-                            :name="channel.isPrivate ? channel.name + ' 🔒' : channel.name"
-                            :class="{ selected: channel.id == currentChannel?.id }" @click="openChannel(channel)" />
-                        
-                    </q-scroll-area>
+                    <ChannelsList :sorted-channels="sortedChannels" :current-channel-id="currentChannel?.id"
+                        @open-channel="openChannel" />
+
                     <div class="mobile-command-entry">
-                        <q-input v-model="mobileCommand"  placeholder="Type command"/>
-                        <q-btn flat round color="primary" icon="send" @click="handleMobileCommand"/>
+                        <q-input v-model="mobileCommand" placeholder="Type command" />
+                        <q-btn flat round color="primary" icon="send" @click="handleMobileCommand" />
                     </div>
                 </div>
             </template>
@@ -48,181 +33,84 @@
             <!-- right panel with chat -->
             <template v-slot:after>
                 <div class="flex full-height chat-view">
-                    <div class="chat-top-area">
+                    <ChatHeader :channel="currentChannel" :typing-users="currentTypingUsers"
+                        :is-anybody-typing="isAnybodyTyping" :show-back="splitterDisabled"
+                        @open-members="() => { showMembersDialog = true; loadChannelMembers() }"
+                        @show-typing="showRealtimeTypingDialog" @back="splitterModel = 100" />
 
-                        <q-btn class="back-button" v-show="splitterDisabled" flat round color="primary" size="md"
-                            icon="arrow_back" @click="splitterModel = 100" />
-                        
-                        <div class="channel-title">
-                            <p>{{ currentChannel?.name }}</p>
-                            <div class="typing-users-area" v-show="isAnybodyTyping">
-                                <p class="typing-user fk">Typing:</p>
-                                <p class="typing-user" v-for="(user, index) in typingUsers[currentChannel?.id!]"
-                                    @click="showRealtimeTypingDialog(index)" :key="index">{{ index }}</p>
-
-                            </div>
-                        </div>
-                        <q-btn outline round color="primary" size="md" icon="info"
-                            @click="() => { showMembersDialog = true; loadChannelMembers(); }" />
-
-                    </div>
 
                     <!-- chat messages -->
-                    <q-scroll-area class="chat-scroll-area no-scrollbar" ref="chatMessagesScrollArea">
-                        <q-infinite-scroll v-if="currentChannel" @load="loadMoreMessages"
-                            style="padding:10px"
-                            ref="chatMessagesInfiniteScroll" reverse>
-                            <template v-slot:loading>
-                                <div class="row justify-center q-my-md">
-                                    <q-spinner-dots color="primary" size="40px" />
-                                </div>
-                            </template>
-                            <q-chat-message
-                            
-                                v-for="message in messages" :name="message.sender?.nickname || 'User'"
-                                :text="[message.text]"
-                                :sent="message.local" :key="message.id.toString()"
-                                :stamp="message.date.toString()" 
-                                :bg-color="getMessageColor(message)"
-                                >
-                                <template #default>
-                                    <div v-highlight-mention>{{ message.text }}</div>
-                                </template>
-                            </q-chat-message>
-                        </q-infinite-scroll>
-                    </q-scroll-area>
+                    <MessagesList ref="messagesList" :messages="messages" :load-more="loadMoreMessages"
+                        :get-message-color="getMessageColor" :enabled="!!currentChannel" />
+
 
                     <!-- input area -->
-                    <div class="bottom-message-area flex">
-                       
-                        <q-input class="new-message-input" filled v-model="newMessage"
-                            @update:model-value="typingMessage" placeholder="Message" />
-                        <q-btn flat round color="primary" icon="send" @click="sendMessage" />
-                    </div>
+                    <MessageInput v-model="newMessage" :disabled="!currentChannel" @typing="typingMessage"
+                        @send="sendMessage" />
+
                 </div>
             </template>
         </q-splitter>
 
         <!-- dialog for viewing channel members -->
-        <q-dialog v-model="showMembersDialog">
-            <q-card style="min-width: 350px; max-height: 80vh;">
-                <q-card-section class="row items-center justify-between">
-                    <div class="text-h6">Channel members</div>
-                    <q-btn flat color="negative" icon="logout" label="Leave" size="sm" @click="leaveChannel" />
-                </q-card-section>
+        <ChannelMembersDialog v-model="showMembersDialog" :channel="currentChannel" :members="channelMembers"
+            :my-id="myId" @leave="leaveChannel" @kick="kickMember" @open-invite="showInviteDialog = true" />
 
-                <q-separator />
-                <q-card-section class="scroll" style="max-height: 60vh; overflow-y: auto;">
-                    <div v-if="channelMembers.length === 0" class="text-grey text-center q-mt-md">
-                        No members yet
-                    </div>
-                    <q-item v-for="member in channelMembers" :key="member.id">
-                       
-
-                        <q-item-section>
-                            <q-item-label>{{ member.nickname }}</q-item-label>
-                            <q-item-label caption>{{ member.email }}</q-item-label>
-                        </q-item-section>
-
-                        <q-item-label caption>
-                            <q-badge :color="member.status === 'online'
-                                ? 'positive'
-                                : member.status === 'dnd'
-                                    ? 'orange'
-                                    : 'grey'" :label="member.status" />
-                        </q-item-label>
-
-
-                        <q-item-section side>
-                            <template v-if="isOwner(member)">
-                                <q-badge color="primary" label="Owner" />
-                            </template>
-                            <template v-else-if="isCurrentUser(member)">
-                                <q-badge color="secondary" label="You" />
-                            </template>
-                            <template v-else-if="showRemoveButton(member)">
-                                <q-btn flat round dense icon="remove_circle" color="negative"
-                                    @click="kickMember(member.id)" />
-                            </template>
-                        </q-item-section>
-
-                    </q-item>
-                </q-card-section>
-
-                <q-card-actions align="right">
-                    <q-btn v-if="!currentChannel?.isPrivate || currentChannel?.ownerId === myId" flat label="Add user"
-                        color="primary" @click="showInviteDialog = true" />
-                    <q-btn flat label="Close" color="primary" v-close-popup />
-                </q-card-actions>
-
-            </q-card>
-        </q-dialog>
 
         <!-- dialog for inviting user -->
-        <q-dialog v-model="showInviteDialog">
-            <q-card style="min-width: 350px">
-                <q-card-section>
-                    <div class="text-h6">Invite user by nickname</div>
-                </q-card-section>
+        <InviteUserDialog v-model="showInviteDialog" v-model:nickname="inviteNickname" :loading="inviteLoading"
+            @invite="inviteUser" />
 
-                <q-card-section>
-                    <q-input v-model="inviteNickname" label="Enter nickname" autofocus @keyup.enter="inviteUser" />
-                </q-card-section>
-
-                <q-card-actions align="right">
-                    <q-btn flat label="Cancel" v-close-popup />
-                    <q-btn color="primary" label="Invite" :loading="inviteLoading" @click="inviteUser" />
-                </q-card-actions>
-            </q-card>
-        </q-dialog>
 
         <!-- dialog for creating a channel -->
-        <q-dialog v-model="showCreateDialog">
-            <q-card style="min-width: 350px">
-                <q-card-section>
-                    <div class="text-h6">Create a new channel</div>
-                </q-card-section>
+        <CreateChannelDialog v-model="showCreateDialog" v-model:channelName="channelName" v-model:isPrivate="isPrivate"
+            @create="createChannel" />
 
-                <q-card-section>
-                    <q-input v-model="channelName" label="Channel name" autofocus />
-                    <q-toggle v-model="isPrivate" label="Private channel" />
-                </q-card-section>
-
-                <q-card-actions align="right">
-                    <q-btn flat label="Cancel" v-close-popup />
-                    <q-btn color="primary" label="Create" @click="createChannel" />
-                </q-card-actions>
-            </q-card>
-        </q-dialog>
     </q-page>
 
-    <q-dialog v-model="showRealtimeTyping">
-        <q-card class="real-typing-card">
-            <q-card-section class="row items-center q-pb-none">
-                <div class="text-h6">{{ selectedUserToView }} is typing:</div>
-                <q-space />
-                <q-btn icon="close" flat round dense v-close-popup />
-            </q-card-section>
+    <RealtimeTypingDialog v-model="showRealtimeTyping" :user="selectedUserToView" :message="realTimeTypedMessage" />
 
-            <q-card-section>
-                {{ realTimeTypedMessage }}
-            </q-card-section>
-        </q-card>
-    </q-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick, computed, reactive, watch } from 'vue'
-import ChannelItem from 'src/components/ChannelItem.vue'
 import { api } from 'boot/axios'
 import { io } from "socket.io-client";
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar'
-import { urlBase64ToUint8Array } from 'src/utils/util-functions';
 import type { Channel, ChannelMessage, User, UserStatus } from 'src/models';
 import { PushNotificationsManager } from 'src/utils/PushNotificationsManager';
-import vHighlightMention from '../utils/highlight-mention'
+import ChannelsList from 'src/components/ChannelsList.vue'
+import ChatHeader from 'src/components/ChatHeader.vue'
+import MessagesList from 'src/components/MessagesList.vue'
+import MessageInput from 'src/components/MessageInput.vue'
+import ChannelMembersDialog from 'src/components/ChannelMembersDialog.vue'
+import InviteUserDialog from 'src/components/InviteUserDialog.vue'
+import CreateChannelDialog from 'src/components/CreateChannelDialog.vue'
+import RealtimeTypingDialog from 'src/components/RealtimeTypingDialog.vue'
+import { useChatSocket } from 'src/composables/useChatSocket'
+import type { QNotifyCreateOptions } from 'quasar'
 
+
+const currentTypingUsers = computed<Record<string, string>>(() => {
+    const channelId = currentChannel.value?.id
+    if (channelId === undefined) return {}
+    return typingUsers[channelId] ?? {}
+})
+
+const channels = ref<Channel[]>([])
+const currentChannel = ref<Channel>()
+
+const messages = ref<ChannelMessage[]>([])
+let totalMessagesAmount = 0
+let currentOffset = 20
+const channelMembers = ref<User[]>([])
+const typingUsers = reactive<Record<number, Record<string, string>>>({})
+
+type Status = 'online' | 'offline' | 'dnd'
+const userStatus = ref<Status>('online')
+
+const myId = Number(localStorage.getItem('userid'))
 
 
 const offlineCutoff = ref<string | null>(localStorage.getItem('offlineCutoff') || null)
@@ -230,44 +118,97 @@ const offlineCutoff = ref<string | null>(localStorage.getItem('offlineCutoff') |
 const $q = useQuasar()
 const router = useRouter()
 
-const userStatus = ref('online')
+const showRealtimeTyping = ref(false);
+const selectedUserToView = ref<string>();
 
-const myId = Number(localStorage.getItem('userid'))
+const splitterModel = ref(25)
+const splitterDisabled = ref(false)
+const newMessage = ref("")
+const showCreateDialog = ref(false)
+const isPrivate = ref(false)
+
+const channelName = ref("")
+
+const chatMessagesScrollArea = ref<any>(null)
+
+const showMembersDialog = ref(false)
+
+const showInviteDialog = ref(false)
+const inviteNickname = ref("")
+const inviteLoading = ref(false)
+
+window.addEventListener("resize", () => {
+    if (window.innerWidth < 1024) {
+        splitterDisabled.value = true
+        splitterModel.value = 100
+    } else {
+        splitterDisabled.value = false
+        splitterModel.value = 25
+    }
+})
+
+const messagesList = ref<any>(null)
+
+function scrollToBottom() {
+    messagesList.value?.scrollArea?.setScrollPercentage('vertical', 100)
+}
+
+const { connectSocket, disconnectSocket, joinChannel, emitTyping, emitNewMessage } = useChatSocket({
+    url: 'http://localhost:3333',
+    token: () => localStorage.getItem('token'),
+    myId,
+
+    userStatus,
+
+    channels,
+    currentChannel,
+    messages,
+    typingUsers,
+    channelMembers,
+
+    loadChannels,
+
+    showError,
+    notify: (o: QNotifyCreateOptions) => $q.notify(o),
+    onAuthRedirect: () => { void router.push('/auth/login') },
+
+    scrollToBottom,
+})
+
 
 async function updateStatus() {
     try {
-        await api.put('/user/status', { status: userStatus.value }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
-        navigator.serviceWorker.controller?.postMessage({type:"user_status",data:userStatus.value});
+        await api.put(
+            '/user/status',
+            { status: userStatus.value },
+            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+        )
+
+        navigator.serviceWorker.controller?.postMessage({ type: "user_status", data: userStatus.value })
+
         if (userStatus.value === 'offline') {
             offlineCutoff.value = new Date().toISOString()
             localStorage.setItem('offlineCutoff', offlineCutoff.value)
-           
-            if (currentSocket.value?.connected) currentSocket.value.disconnect()
+            disconnectSocket()
             return
         }
 
         if (userStatus.value === 'online') {
             offlineCutoff.value = null
             localStorage.removeItem('offlineCutoff')
-            
 
-            if (!currentSocket.value?.connected) {
-                currentSocket.value.connect()
-                await new Promise(resolve => currentSocket.value.once('connect', resolve))
-            }
+            await connectSocket()
             await loadChannels()
+
             if (currentChannel.value) {
                 await reloadCurrentChannel()
             }
         }
-       
+
     } catch (err) {
         showError(err)
     }
 }
-
-
-
 
 
 // Notify helpers
@@ -333,39 +274,6 @@ function showSuccess(message?: string) {
     })
 }
 
-
-const splitterModel = ref(25)
-const splitterDisabled = ref(false)
-const newMessage = ref("")
-const showCreateDialog = ref(false)
-const isPrivate = ref(false)
-
-const channels = ref<Channel[]>([])
-const currentChannel = ref<Channel>()
-const channelName = ref("")
-
-const chatMessagesScrollArea = ref<any>(null)
-const chatMessagesInfiniteScroll = ref<any>(null)
-
-const showMembersDialog = ref(false)
-const channelMembers = ref<User[]>([])
-
-const showInviteDialog = ref(false)
-const inviteNickname = ref("")
-const inviteLoading = ref(false)
-
-window.addEventListener("resize", () => {
-    if (window.innerWidth < 1024) {
-        splitterDisabled.value = true
-        splitterModel.value = 100
-    } else {
-        splitterDisabled.value = false
-        splitterModel.value = 25
-    }
-})
-
-
-
 async function loadChannelMembers() {
     if (!currentChannel.value) return
     try {
@@ -414,29 +322,23 @@ async function kickMember(userId: number) {
     }
 }
 
-function showRemoveButton(member: User): boolean {
-    const channel = currentChannel.value
-    if (!channel) return false
+async function revokeMember(userId: number) {
+  if (!currentChannel.value) return
+  try {
+    const res = await api.post(
+      `/channels/${currentChannel.value.id}/revoke`,
+      { userId },
+      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+    )
 
-    const myId = Number(localStorage.getItem('userid'))
+    showSuccess(res.data.message)
 
-    if (channel.isPrivate) {
-        return channel.ownerId === myId && member.id !== myId
-    }
-
-    return member.id !== channel.ownerId && member.id !== myId
+    channelMembers.value = channelMembers.value.filter(m => m.id !== userId)
+  } catch (err: any) {
+    showError(err)
+  }
 }
 
-function isOwner(member: User): boolean {
-    const channel = currentChannel.value
-    if (!channel) return false
-    return member.id === channel.ownerId
-}
-
-function isCurrentUser(member: User): boolean {
-    const myId = Number(localStorage.getItem('userid') || localStorage.getItem('userId') || 0)
-    return member.id === myId
-}
 
 
 async function inviteUser() {
@@ -521,150 +423,26 @@ onMounted(async () => {
         splitterDisabled.value = false
         splitterModel.value = 25
     }
+
     await loadChannels()
-    currentSocket.value = io("http://localhost:3333", {
-        extraHeaders: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
-    })
-    currentSocket.value.on("connect", async () => {
-        console.log("Connected!", currentSocket.value.id)
+    await connectSocket()
 
-        if (userStatus.value === "online") {
-            await loadChannels()
-            if (currentChannel.value) {
-                const newMessages = await api.get(`/messages/${currentChannel.value.id}?offset=0`)
-                messages.value.splice(0, messages.value.length, ...newMessages.data.messages)
-                await nextTick()
-                setTimeout(() => {
-                    chatMessagesScrollArea.value?.setScrollPercentage('vertical', 200)
-                }, 150)
-            }
-
-        }
-    })
-
-
-    currentSocket.value.on("disconnect", (reason: any) => console.log("Disconnected:", reason))
-    currentSocket.value.on("connect_error", async (err: any) => {
-        showError(err)
-        await router.push("/auth/login")
-    })
-    currentSocket.value.on("new_message", async (msg: ChannelMessage) => {
-        if (msg.userId.toString() === localStorage.getItem("userid")) return
-
-        convertMessageDate(msg)
-
-        if (msg.channelId == currentChannel.value?.id) {
-            msg.local = false
-            messages.value?.push(msg)
-            await nextTick()
-            chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
-        }
-
-        const targetChannel = channels.value.find(channel => channel.id == msg.channelId)
-        if (targetChannel) targetChannel.lastMessage = msg
-
-        if (userStatus.value === 'dnd') return
-
-        if (msg.channelId !== currentChannel.value?.id && userStatus.value === 'online') {
-            /*$q.notify({
-                type: 'info',
-                message: `New message from ${msg.sender.nickname}: ${msg.text}`,
-                position: 'top-right'
-            })*/
-        }
-
-    })
-
-    currentSocket.value.on("user_status_changed", (data: { userId: number, status: UserStatus }) => {
-        const member = channelMembers.value.find(m => m.id === data.userId)
-        if (member) member.status = data.status
-    })
-
-    currentSocket.value.on('invited_to_channel', (channel: any) => {
-        channels.value = channels.value.filter(c => c.id !== channel.id)
-
-        channels.value.unshift({
-            ...channel,
-            isPrivate: channel.isPrivate ?? false,
-            ownerId: channel.ownerId ?? 0,
-            lastMessage: channel.lastMessage
-                ? {
-                    ...channel.lastMessage,
-                    date: new Date(channel.lastMessage.date),
-                }
-                : null,
-        })
-
-        $q.notify({
-            type: 'info',
-            message: `You were added to channel "${channel.name}"`,
-            position: 'top',
-        })
-    })
-
-    currentSocket.value.on('channel_deleted', async (data: { channelId: number }) => {
-        channels.value = channels.value.filter(c => c.id !== data.channelId)
-
-        if (currentChannel.value?.id === data.channelId) {
-            currentChannel.value = undefined
-            messages.value = []
-            $q.notify({
-                type: 'warning',
-                message: 'Channel was deleted by owner',
-                position: 'top'
-            })
-        }
-        await loadChannels()
-    })
-
-    currentSocket.value.on("typing", (msg: { channelId: number, text: string, user: { nickname: string } }) => {
-        const { channelId, text, user } = msg
-        const nickname = user.nickname
-
-        // Ensure the channel exists as a reactive object
-        if (!typingUsers[channelId]) {
-            // Important: use Vue.set or assign reactive object
-            typingUsers[channelId] = reactive({})
-        }
-
-
-        if (text.trim() == '') {
-            delete typingUsers[channelId][nickname];
-
-
-        } else {
-            typingUsers[channelId][nickname] = text
-        }
-
-
-
-
-    });
     await navigator.serviceWorker.ready;
     const res = await api.get(`/user/mynickname`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     })
-    nickName = res.data;
-    navigator.serviceWorker.controller?.postMessage({type:"user_nickname", data:res.data});
-   
-    await askNotificationPermission();
-    await PushNotificationsManager.subscribeUser();
+    nickName = res.data
+    navigator.serviceWorker.controller?.postMessage({ type: "user_nickname", data: res.data })
 
-
+    await askNotificationPermission()
+    await PushNotificationsManager.subscribeUser()
 })
+
 let nickName = "";
-async function askNotificationPermission() 
-{ 
-    const permission = await Notification.requestPermission(); 
-    if (permission !== 'granted') { throw new Error('Notification permission denied'); } 
+async function askNotificationPermission() {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') { throw new Error('Notification permission denied'); }
 }
-
-
-const messages = ref<ChannelMessage[]>([])
-let totalMessagesAmount = 0
-let currentOffset = 20
 
 async function loadMessages(offset: number = 0) {
     try {
@@ -701,7 +479,7 @@ async function reloadCurrentChannel() {
     messages.value = fresh;
     await nextTick()
     setTimeout(() => {
-        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100)
+        scrollToBottom()
     }, 120)
 }
 
@@ -731,11 +509,11 @@ async function openChannel(channel: Channel) {
     totalMessagesAmount = 0
     currentOffset = 20
     currentChannel.value = channel
-    currentSocket.value.emit("join_channel", { channelId: channel.id })
+    joinChannel(channel.id)
     await loadMessages()
     await nextTick()
     setTimeout(() => {
-        chatMessagesScrollArea.value?.setScrollPercentage('vertical', 100, 10)
+        scrollToBottom()
     }, 100)
     if (window.innerWidth < 1024) {
         splitterDisabled.value = true
@@ -783,10 +561,10 @@ async function sendMessage() {
         await nextTick()
 
         setTimeout(() => {
-            chatMessagesScrollArea.value?.setScrollPercentage('vertical', 1)
+            scrollToBottom()
         }, 120)
 
-        currentSocket.value?.emit("new_message", newMsg)
+        emitNewMessage(newMsg)
 
         newMessage.value = ""
         typingMessage("");
@@ -875,6 +653,48 @@ async function handleCommand(input: string) {
                 break
             }
 
+            case '/revoke': {
+                if (!currentChannel.value) {
+                    $q.notify({ type: 'warning', message: 'No active channel selected', position: 'top' })
+                    break
+                }
+
+                if (!currentChannel.value.isPrivate) {
+                    $q.notify({ type: 'negative', message: 'Command /revoke works only in private channels', position: 'top' })
+                    break
+                }
+
+                if (currentChannel.value.ownerId !== myId) {
+                    $q.notify({ type: 'negative', message: 'Only channel owner can /revoke', position: 'top' })
+                    break
+                }
+
+                const nick = args[0]
+                if (!nick) {
+                    $q.notify({ type: 'warning', message: 'Usage: /revoke nickName', position: 'top' })
+                    break
+                }
+
+                if (!channelMembers.value.length) {
+                    await loadChannelMembers()
+                }
+
+                const member = channelMembers.value.find(m => m.nickname === nick)
+                if (!member) {
+                    $q.notify({ type: 'warning', message: `User ${nick} is not in this channel`, position: 'top' })
+                    break
+                }
+
+                if (member.id === myId) {
+                    $q.notify({ type: 'warning', message: `You can't /revoke yourself`, position: 'top' })
+                    break
+                }
+
+                await revokeMember(member.id)
+                break
+            }
+
+
             // /cancel
             case '/cancel': {
                 if (!currentChannel.value) {
@@ -923,7 +743,7 @@ async function handleCommand(input: string) {
             default: {
                 $q.notify({
                     type: 'warning',
-                    message: `Unknown command: ${cmd}`, 
+                    message: `Unknown command: ${cmd}`,
                     position: "top"
                 })
             }
@@ -952,9 +772,6 @@ const realTimeTypedMessage = computed(() => {
 
     return typingUsers[channelId]?.[userId] ?? "";
 })
-const typingUsers = reactive<Record<number, Record<string, string>>>({});
-const showRealtimeTyping = ref(false);
-const selectedUserToView = ref<string>();
 
 function showRealtimeTypingDialog(userId: string) {
     selectedUserToView.value = userId.toString();
@@ -962,14 +779,10 @@ function showRealtimeTypingDialog(userId: string) {
 }
 
 function typingMessage(value: any) {
-
-    if (!currentChannel.value) return;
-
-    currentSocket.value.emit("typing", {
-        channelId: currentChannel.value?.id,
-        text: value
-    });
+    if (!currentChannel.value) return
+    emitTyping(currentChannel.value.id, value)
 }
+
 function getMessageColor(message: any): string {
     const text = message.text ?? ''
 
@@ -986,8 +799,7 @@ function getMessageColor(message: any): string {
 }
 
 const mobileCommand = ref("");
-async function handleMobileCommand()
-{
+async function handleMobileCommand() {
     await handleCommand(mobileCommand.value);
     mobileCommand.value = "";
 }
@@ -1096,33 +908,34 @@ async function handleMobileCommand()
 .real-typing-card {
     width: 40%
 }
+
 .mention {
     color: blue;
 }
 
-.mobile-command-entry
-{
+.mobile-command-entry {
     display: none;
     background-color: #f6f6f6;
     padding: 10px;
-    
-    .q-input
-    {
-        flex:auto;
+
+    .q-input {
+        flex: auto;
+
         .q-field__control {
             height: 40px;
         }
     }
-    .q-btn
-    {
-        flex:none;
+
+    .q-btn {
+        flex: none;
     }
 }
+
 @media screen and (max-width:1024px) {
-    .mobile-command-entry
-    {
+    .mobile-command-entry {
         display: flex;
     }
+
     .q-splitter--vertical>.q-splitter__separator>div {
         display: none;
     }

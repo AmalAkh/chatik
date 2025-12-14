@@ -160,8 +160,8 @@ export default class ChannelsController {
             .where('channel_id', channel.id)
             .where('user_id', userId)
             .first()
-
-        if (ban) {
+        
+        if (ban && ban?.votes >= 3) {
             if (user.id !== channel.owner_id) {
                 return response.status(403).json({
                     error: 'This user is banned from this channel and can only be invited by the owner.'
@@ -224,61 +224,64 @@ export default class ChannelsController {
 
 
     public async kick({ request, auth, params, response }: HttpContextContract) {
-        const { userId } = request.only(['userId'])
-        const user = auth.user!
+        const rawUserId = request.input('userId')
+        const targetUserId = Number(rawUserId)
+
+        const voter = auth.user!
         const channel = await Channel.findOrFail(params.channelId)
-    
-        if (!userId) {
-            return response.status(400).json({ error: 'Missing userId' })
+
+        if (!targetUserId) {
+            return response.status(400).json({ error: 'Missing/invalid userId' })
         }
-    
-        if (userId === channel.owner_id) {
-            return response.status(403).json({
-                error: "You cannot remove the channel owner."
-            })
+
+        if (targetUserId === channel.owner_id) {
+            return response.status(403).json({ error: 'You cannot remove the channel owner.' })
         }
-    
+
         if (channel.is_private) {
             return response.status(403).json({
                 error: 'Kick is disabled in private channels. Use /revoke instead.'
             })
         }
-    
-        const memberToKick = await ChannelMember
-            .query()
-            .where('channel_id', channel.id)
-            .where('user_id', userId)
+
+        const memberToKick = await ChannelMember.query()
+            .where('channelId', channel.id)
+            .where('userId', targetUserId)
             .first()
-    
+
         if (!memberToKick) {
             return response.status(404).json({ error: 'User is not in the channel' })
         }
-    
+
+        await memberToKick.delete()
+
         let ban = await ChannelBan.query()
-            .where('channel_id', channel.id)
-            .where('user_id', userId)
+            .where('channelId', channel.id)
+            .where('userId', targetUserId)
             .first()
-    
+
         if (!ban) {
             ban = await ChannelBan.create({
                 channelId: channel.id,
-                userId,
+                userId: targetUserId,
                 votes: 1,
-                permanent: false,
             })
         } else {
             ban.votes += 1
             await ban.save()
         }
-    
+
+        Ws.io.in(`user:${targetUserId}`).socketsLeave(`channel:${channel.id}`)
+
         if (ban.votes >= 3) {
-            await memberToKick.delete()
-            return { message: 'User has been banned from this channel (3 votes reached)' }
+            return { message: `User kicked and BANNED (votes ${ban.votes}/3)` }
         }
-    
-        return { message: `Kick vote added (${ban.votes}/3)` }
+
+        return { message: `User kicked (vote ${ban.votes}/3)` }
     }
-    
+
+
+
 
     public async show({ params }: HttpContextContract) {
         const channel = await Channel.query()

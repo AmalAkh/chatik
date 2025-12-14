@@ -16,6 +16,7 @@ Route.group(() => {
   Route.post('/', 'ChannelsController.create')
   Route.post('/:channelId/invite', 'ChannelsController.invite')
   Route.post('/:channelId/kick', 'ChannelsController.kick')
+  Route.post('/:channelId/revoke', 'ChannelsController.revoke')
   Route.get('/:channelId/', 'ChannelsController.show')
   Route.delete('/:channelId/', 'ChannelsController.destroy')
   Route.post('/:channelId/leave', 'ChannelsController.leave')
