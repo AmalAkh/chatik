@@ -136,6 +136,11 @@ Generated using [DbSchema](https://dbschema.com)
 
 # Project structure
 
+## Application Architecture
+The diagram shows a client–server architecture where the frontend communicates with the backend via REST APIs for authentication, channel management, and message history, and uses WebSockets for real-time messaging and typing events.
+
+![img](diagrams/ApplicationArchitecture.jpg)
+
 ## Database structure
 
 ### Table public.api_tokens 
@@ -329,4 +334,8 @@ Generated using [DbSchema](https://dbschema.com)
 
 
 # Screenshots
-
+![login](screenshots/login.png)
+![register](screenshots/register.png)
+![main](screenshots/main.png)
+![memberList](screenshots/memberList.png)
+![channelCreation](screenshots/channelCreation.png)
