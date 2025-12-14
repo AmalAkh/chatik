@@ -322,6 +322,24 @@ async function kickMember(userId: number) {
     }
 }
 
+async function revokeMember(userId: number) {
+  if (!currentChannel.value) return
+  try {
+    const res = await api.post(
+      `/channels/${currentChannel.value.id}/revoke`,
+      { userId },
+      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+    )
+
+    showSuccess(res.data.message)
+
+    channelMembers.value = channelMembers.value.filter(m => m.id !== userId)
+  } catch (err: any) {
+    showError(err)
+  }
+}
+
+
 
 async function inviteUser() {
     if (!currentChannel.value || !inviteNickname.value.trim()) return
@@ -634,6 +652,48 @@ async function handleCommand(input: string) {
                 break
             }
 
+            case '/revoke': {
+                if (!currentChannel.value) {
+                    $q.notify({ type: 'warning', message: 'No active channel selected', position: 'top' })
+                    break
+                }
+
+                if (!currentChannel.value.isPrivate) {
+                    $q.notify({ type: 'negative', message: 'Command /revoke works only in private channels', position: 'top' })
+                    break
+                }
+
+                if (currentChannel.value.ownerId !== myId) {
+                    $q.notify({ type: 'negative', message: 'Only channel owner can /revoke', position: 'top' })
+                    break
+                }
+
+                const nick = args[0]
+                if (!nick) {
+                    $q.notify({ type: 'warning', message: 'Usage: /revoke nickName', position: 'top' })
+                    break
+                }
+
+                if (!channelMembers.value.length) {
+                    await loadChannelMembers()
+                }
+
+                const member = channelMembers.value.find(m => m.nickname === nick)
+                if (!member) {
+                    $q.notify({ type: 'warning', message: `User ${nick} is not in this channel`, position: 'top' })
+                    break
+                }
+
+                if (member.id === myId) {
+                    $q.notify({ type: 'warning', message: `You can't /revoke yourself`, position: 'top' })
+                    break
+                }
+
+                await revokeMember(member.id)
+                break
+            }
+
+
             // /cancel
             case '/cancel': {
                 if (!currentChannel.value) {
@@ -718,8 +778,8 @@ function showRealtimeTypingDialog(userId: string) {
 }
 
 function typingMessage(value: any) {
-  if (!currentChannel.value) return
-  emitTyping(currentChannel.value.id, value)
+    if (!currentChannel.value) return
+    emitTyping(currentChannel.value.id, value)
 }
 
 function getMessageColor(message: any): string {
